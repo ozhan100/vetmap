@@ -16,7 +16,7 @@ const AUTH_CONFIG = {
 // SUPABASE AYARLARI (Supabase panelinden alıp buraya yapıştırın)
 const SUPABASE_URL = 'https://tjedetetzqenwdlqgwiv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ig4eVjojcsZqRraP8cD5xg_WPdUsBgp';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 
@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Supabase RPC fonksiyonunu çağırıyoruz
-            const { data, error } = await supabase.rpc('guvenli_giris_yap', {
+            const { data, error } = await supabaseClient.rpc('guvenli_giris_yap', {
                 p_kullanici_adi: user,
                 p_sifre: pass,
                 p_uygulama_adi: 'VetMap'
@@ -555,3 +555,4 @@ async function sendNotification(message) {
         }
     }
 }
+
