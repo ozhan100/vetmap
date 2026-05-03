@@ -429,15 +429,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const user = document.getElementById('username').value;
+        const user = document.getElementById('username').value.trim();
         const pass = document.getElementById('password').value;
 
         const loginBtn = document.querySelector('.login-btn');
         const originalText = loginBtn.innerText;
         loginBtn.innerText = "Giriş Yapılıyor...";
         loginBtn.disabled = true;
+        loginError.style.display = 'none';
 
         try {
+            console.log("VetMap Giriş denemesi:", user);
             // Supabase RPC fonksiyonunu çağırıyoruz
             const { data, error } = await supabaseClient.rpc('guvenli_giris_yap', {
                 p_kullanici_adi: user,
@@ -446,13 +448,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (error) {
-                console.error("Giriş hatası:", error);
-                loginError.innerText = "Sistemsel bir hata oluştu!";
+                console.error("Supabase RPC Hatası:", error);
+                loginError.innerText = "Bağlantı Hatası: " + (error.message || "Sunucuya ulaşılamadı.");
                 loginError.style.display = 'block';
                 return;
             }
 
-            if (data.basarili) {
+            console.log("RPC Yanıtı:", data);
+
+            if (data && data.basarili) {
                 // VetMap uygulaması için yetki kontrolü
                 if (data.vetmap_yetkisi) {
                     currentUser = data.kullanici_adi;
@@ -471,20 +475,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     loginError.style.display = 'block';
                 }
             } else {
-                loginError.innerText = data.mesaj || "Hatalı şifre veya kullanıcı adı!";
+                loginError.innerText = (data && data.mesaj) ? data.mesaj : "Hatalı şifre veya kullanıcı adı!";
                 loginError.style.display = 'block';
             }
         } catch (err) {
             console.error("Beklenmeyen hata:", err);
-            loginError.innerText = "Sunucuya bağlanılamadı. (URL ve Key doğru mu?)";
+            loginError.innerText = "Beklenmeyen bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.";
             loginError.style.display = 'block';
         } finally {
             loginBtn.innerText = originalText;
             loginBtn.disabled = false;
             document.getElementById('password').value = '';
-            setTimeout(() => { loginError.style.display = 'none'; }, 3000);
+            // Hata mesajını hemen gizleme, kullanıcı okuyabilsin
         }
     });
+
 
     function showApp() {
         loginScreen.classList.add('hidden');
