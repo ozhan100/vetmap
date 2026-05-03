@@ -69,12 +69,15 @@ function initMap() {
 
     // Event Listeners
     document.getElementById('locateBtn').addEventListener('click', locateUser);
-    document.getElementById('refreshBtn').addEventListener('click', () => location.reload());
+    document.getElementById('updateBtn').addEventListener('click', () => location.reload());
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        sessionStorage.removeItem('isLoggedIn');
+        location.reload();
+    });
     
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
 
-    searchInput.addEventListener('input', handleSearch);
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             applyFilters(true); // true means forced search with zoom
@@ -298,13 +301,6 @@ function locateUser() {
     );
 }
 
-let searchTimeout;
-function handleSearch(e) {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        applyFilters();
-    }, 400);
-}
 
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
@@ -319,8 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const appOverlay = document.getElementById('appOverlay');
     const loginError = document.getElementById('loginError');
     const updateBtn = document.getElementById('updateBtn');
-    const logoutModal = document.getElementById('logoutModal');
-    const closeLogoutBtn = document.getElementById('closeLogoutBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
     // Versiyonu yazdır
