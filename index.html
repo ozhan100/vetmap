@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VetMap - Hayvan Sağlığı İşletme Takibi</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- SheetJS for XLSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3062/3062634.png">
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="login-logo">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            </div>
+            <h2>VetMap Portal <span class="login-version"></span></h2>
+            <p>Hayvan Sağlığı ve İşletme Takip Sistemine Hoş Geldiniz.</p>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Kullanıcı Adı</label>
+                    <input type="text" id="username" placeholder="Kullanıcı adınız" required>
+                </div>
+                <div class="form-group">
+                    <label>Şifre</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="login-btn">Giriş Yap</button>
+                <div id="loginError" class="login-error">Geçersiz kullanıcı adı veya şifre!</div>
+            </form>
+        </div>
+    </div>
+
+    <div class="overlay" id="appOverlay" style="display: none;">
+        <!-- Search Container -->
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="İşletme sahibi veya köy ara...">
+        </div>
+
+        <!-- Bottom Toolbar -->
+        <div class="bottom-toolbar">
+            <div class="toolbar-content">
+                <div class="filter-group">
+                    <div id="animalFilterBtn" class="toolbar-btn filter-btn-main">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        <span>Tür</span>
+                    </div>
+                    <div id="animalDropdown" class="filter-dropdown">
+                        <div class="dropdown-header">
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="selectAllAnimals" checked>
+                                <span>Tümü</span>
+                            </label>
+                        </div>
+                        <div id="animalList" class="dropdown-list">
+                            <!-- JS ile dolacak -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="version-tag-container">
+                    <span id="versionTag">V1.0.0</span>
+                </div>
+
+                <div class="action-group">
+                    <button id="updateBtn" class="toolbar-btn" title="Programı Güncelle">G</button>
+                    <button id="refreshBtn" class="toolbar-btn" title="Sayfayı Yenile">Y</button>
+                    <button id="openSettingsBtn" class="toolbar-btn" title="Veri Yükle">⚙️</button>
+                    <button id="locateBtn" class="toolbar-btn" title="Konumumu Bul">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Info Panel -->
+    <div id="infoPanel" class="info-panel">
+        <div class="handle"></div>
+        <div id="panelContent">
+            <div class="biz-name" id="bizName">Seçili İşletme</div>
+            <div class="biz-meta">
+                <div class="meta-item">
+                    <span id="bizStatus" class="status-badge status-aktif">AKTİF</span>
+                </div>
+                <div class="meta-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <span id="bizAddress">Köy Bilgisi</span>
+                </div>
+                <div class="meta-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                    <span id="bizPhone">Telefon Numarası</span>
+                </div>
+                <div class="meta-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span id="bizID">ID: TR16000...</span>
+                </div>
+            </div>
+            
+            <div class="animal-stats" id="animalStats">
+                <!-- Hayvan sayıları buraya gelecek -->
+            </div>
+            <div class="action-buttons">
+                <a href="#" id="callBtn" class="btn-action btn-call">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                    Ara
+                </a>
+                <a href="#" id="navBtn" target="_blank" class="btn-action btn-nav">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+                    Yol Tarifi
+                </a>
+            </div>
+            <div class="update-section" style="margin-top: 12px;">
+                <button id="updateLocBtn" class="btn-action btn-update" style="width: 100%; background: #6366f1;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    Konumu Burası Olarak Güncelle
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Modal -->
+    <div id="logoutModal" class="modal">
+        <div class="modal-content">
+            <h3>Oturum İşlemleri</h3>
+            <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 20px;">Oturumu kapatmak istediğinize emin misiniz?</p>
+            
+            <button id="logoutBtn" class="login-btn" style="background: var(--error); border-color: var(--error);">Oturumu Kapat</button>
+            <button id="closeLogoutBtn" class="logout-btn">Vazgeç</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <h3>📂 Veri Kaynaklarını Yönet</h3>
+            <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 20px;">Cihazınızdan İşletme ve Sürü dosyalarını seçerek haritayı güncelleyebilirsiniz.</p>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label>Sürü Kayıtları Listesi (.xls)</label>
+                <input type="file" id="local-suru" accept=".xls,.xlsx" style="width: 100%; padding: 8px; margin-top: 5px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label>İşletme Detay Listesi (.xls)</label>
+                <input type="file" id="local-detay" accept=".xls,.xlsx" style="width: 100%; padding: 8px; margin-top: 5px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;">
+            </div>
+
+            <button id="closeSettingsBtn" class="logout-btn" style="width: 100%;">Kapat</button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+</body>
+</html>
