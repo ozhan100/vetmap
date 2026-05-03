@@ -70,7 +70,17 @@ function initMap() {
     // Event Listeners
     document.getElementById('locateBtn').addEventListener('click', locateUser);
     document.getElementById('refreshBtn').addEventListener('click', () => location.reload());
-    document.getElementById('searchInput').addEventListener('input', handleSearch);
+    
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+
+    searchInput.addEventListener('input', handleSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            applyFilters(true); // true means forced search with zoom
+        }
+    });
+    searchBtn.addEventListener('click', () => applyFilters(true));
     
     // Animal Filter Listeners
     const filterBtn = document.getElementById('animalFilterBtn');
@@ -131,8 +141,9 @@ function updateFilters() {
     applyFilters();
 }
 
-function applyFilters() {
-    const query = document.getElementById('searchInput').value.toLocaleLowerCase('tr-TR');
+function applyFilters(forceZoom = false) {
+    const searchInput = document.getElementById('searchInput');
+    const query = searchInput.value.toLocaleLowerCase('tr-TR').trim();
     const selectAll = document.getElementById('selectAllAnimals').checked;
 
     const filtered = businesses.filter(biz => {
@@ -153,6 +164,14 @@ function applyFilters() {
     });
 
     renderMarkers(filtered);
+
+    // Eğer tek bir sonuç varsa veya "Ara" butonuna basılmışsa ilk sonuca odaklan
+    if (filtered.length > 0 && (forceZoom || (query.length > 3 && filtered.length === 1))) {
+        const first = filtered[0];
+        map.setView([first.lat, first.lng], 17);
+        // Paneli de otomatik aç
+        showBusinessInfo(first);
+    }
 }
 
 function renderMarkers(data) {
