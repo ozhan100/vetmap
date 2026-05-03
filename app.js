@@ -520,9 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Eğer kullanıcı çıkmak isterse sayfayı yenilemesi yeterli (sessionStorage kullandığımız için)
     // Veya logoyu tıklanabilir yapıp çıkış modala bağlayabiliriz.
     
-    document.querySelector('.header').addEventListener('dblclick', () => {
-        logoutModal.classList.add('active');
-    });
+    // Header was removed, user can just use refresh to logout if needed
 
     closeLogoutBtn.addEventListener('click', () => {
         logoutModal.classList.remove('active');
