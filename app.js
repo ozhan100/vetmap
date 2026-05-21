@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.5";
+const APP_VERSION = "1.3.6";
 let map;
 let markerCluster;
 let businesses = [];
