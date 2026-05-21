@@ -157,7 +157,10 @@
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
-            <h3>📂 Veri Kaynaklarını Yönet</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="margin: 0;">📂 Veri Kaynaklarını Yönet</h3>
+                <button id="closeSettingsBtn" style="background: none; border: none; color: var(--text-dim); font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 4px 8px;" title="Kapat">✕</button>
+            </div>
             <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 20px;">Cihazınızdan İşletme ve Sürü dosyalarını seçerek haritayı güncelleyebilirsiniz.</p>
             
             <div class="form-group" style="margin-bottom: 15px;">
@@ -170,7 +173,8 @@
                 <input type="file" id="local-detay" accept=".xls,.xlsx" style="width: 100%; padding: 8px; margin-top: 5px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;">
             </div>
 
-            <button id="processFilesBtn" class="login-btn" style="width: 100%; margin-bottom: 10px; background: #10b981; border: none; display: block;">Haritaya Yükle</button>
+            <button id="processFilesBtn" class="login-btn" style="width: 100%; margin-bottom: 10px; background: #10b981; border: none; display: block;">🗺️ Haritaya Yükle</button>
+            <button id="cancelSettingsBtn" class="logout-btn" style="width: 100%; display: block; text-align: center;">Kapat</button>
         </div>
     </div>
 

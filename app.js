@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.6";
+const APP_VERSION = "1.3.7";
 let map;
 let markerCluster;
 let businesses = [];
@@ -370,10 +370,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ayarlar Modal Kontrolleri
     const settingsModal = document.getElementById('settingsModal');
     const openSettingsBtn = document.getElementById('openSettingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
     
     if (openSettingsBtn) {
         openSettingsBtn.addEventListener('click', () => {
             settingsModal.classList.add('active');
+        });
+    }
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('active');
+        });
+    }
+    if (cancelSettingsBtn) {
+        cancelSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('active');
         });
     }
 
@@ -497,9 +509,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Oturum kontrolü (Artık sessionStorage kullanıyoruz - Tarayıcı kapanınca silinir)
-    const savedLogin = sessionStorage.getItem('isLoggedIn');
+    const savedLogin = sessionStorage.getItem('vetmap_isLoggedIn');
     if (savedLogin === 'true') {
-        currentUser = sessionStorage.getItem('currentUser');
+        currentUser = sessionStorage.getItem('vetmap_currentUser');
         showApp();
     }
 
@@ -536,13 +548,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // VetMap uygulaması için yetki kontrolü
                 if (data.vetmap_yetkisi) {
                     currentUser = data.kullanici_adi;
-                    sessionStorage.setItem('isLoggedIn', 'true');
-                    sessionStorage.setItem('currentUser', currentUser);
+                    sessionStorage.setItem('vetmap_isLoggedIn', 'true');
+                    sessionStorage.setItem('vetmap_currentUser', currentUser);
                     
-                    // Telegram ayarlarını kaydediyoruz
+                    // Telegram ayarlarını kaydediyoruz (vetmap_ prefix ile çakışma önlenir)
                     if (data.telegram_token) {
-                        sessionStorage.setItem('tgToken', data.telegram_token);
-                        sessionStorage.setItem('tgChat', data.telegram_chat_id);
+                        sessionStorage.setItem('vetmap_tgToken', data.telegram_token);
+                        sessionStorage.setItem('vetmap_tgChat', data.telegram_chat_id);
                     }
                     await sendNotification(`${currentUser} sisteme giriş yaptı!\nUygulama: VetMap v${APP_VERSION}`);
                     showApp();
@@ -608,8 +620,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     logoutBtn.addEventListener('click', () => {
-        sessionStorage.removeItem('isLoggedIn');
-        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('vetmap_isLoggedIn');
+        sessionStorage.removeItem('vetmap_currentUser');
+        sessionStorage.removeItem('vetmap_tgToken');
+        sessionStorage.removeItem('vetmap_tgChat');
         window.location.href = window.location.pathname + "?v=" + Date.now(); // Cache'i aşmak için
     });
 });
@@ -617,8 +631,8 @@ document.addEventListener('DOMContentLoaded', () => {
 async function sendNotification(message) {
     console.log("Bildirim:", message);
     
-    const tgToken = sessionStorage.getItem('tgToken');
-    const tgChat = sessionStorage.getItem('tgChat');
+    const tgToken = sessionStorage.getItem('vetmap_tgToken');
+    const tgChat = sessionStorage.getItem('vetmap_tgChat');
     
     if (AUTH_CONFIG.notificationEnabled && tgToken && tgChat) {
         try {
