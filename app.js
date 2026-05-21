@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.3.2";
 let map;
 let markerCluster;
 let businesses = [];
@@ -18,7 +18,9 @@ const SUPABASE_URL = 'https://tjedetetzqenwdlqgwiv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ig4eVjojcsZqRraP8cD5xg_WPdUsBgp';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentUser = null;
+let currentOwnerData = null;
+let currentSearchResults = [];
+let currentSearchIndex = 0;
 
 // Initialize Map
 function initMap() {
@@ -147,16 +149,27 @@ function updateFilters() {
 function applyFilters(forceZoom = false) {
     const searchInput = document.getElementById('searchInput');
     const query = searchInput.value.toLocaleLowerCase('tr-TR').trim();
+    const queryNoSpaces = query.replace(/\s+/g, '');
     const selectAll = document.getElementById('selectAllAnimals').checked;
 
-    const filtered = businesses.filter(biz => {
-        // Search Filter
-        const matchesSearch = !query || 
-            biz.name.toLocaleLowerCase('tr-TR').includes(query) ||
-            biz.village.toLocaleLowerCase('tr-TR').includes(query) ||
-            biz.phone.includes(query);
+    const searchTerms = query.split(/\s+/);
 
-        if (!matchesSearch) return false;
+    const filtered = businesses.filter(biz => {
+        // Search Filter (İsim, Köy, Telefon, TC, İşletme No)
+        if (query) {
+            const exactNumberMatch = 
+                (biz.phone && biz.phone.replace(/\s+/g, '').includes(queryNoSpaces)) ||
+                (biz.tc && biz.tc.includes(queryNoSpaces)) ||
+                (biz.id && biz.id.toLocaleLowerCase('tr-TR').includes(queryNoSpaces));
+
+            if (!exactNumberMatch) {
+                // Combine fields for word-by-word search (like "Akbaşlar Mustafa")
+                const bizText = `${biz.name} ${biz.village}`.toLocaleLowerCase('tr-TR');
+                const multiWordMatch = searchTerms.every(term => bizText.includes(term));
+                
+                if (!multiWordMatch) return false;
+            }
+        }
 
         // Animal Filter
         if (selectAll) return true;
@@ -168,14 +181,30 @@ function applyFilters(forceZoom = false) {
 
     renderMarkers(filtered);
 
-    // Eğer tek bir sonuç varsa veya "Ara" butonuna basılmışsa ilk sonuca odaklan
+    // Eğer sonuçlar varsa ve arama yapıldıysa veya forceZoom true ise
     if (filtered.length > 0 && (forceZoom || (query.length > 3 && filtered.length === 1))) {
-        const first = filtered[0];
-        map.setView([first.lat, first.lng], 17);
-        // Paneli de otomatik aç
-        showBusinessInfo(first);
+        currentSearchResults = filtered;
+        currentSearchIndex = 0;
+        showSearchResult(0);
+    } else {
+        currentSearchResults = [];
+        const searchNav = document.getElementById('searchNav');
+        if (searchNav) searchNav.style.display = 'none';
     }
 }
+
+window.showSearchResult = function(index) {
+    if (!currentSearchResults || currentSearchResults.length === 0) return;
+    
+    if (index < 0) index = currentSearchResults.length - 1;
+    if (index >= currentSearchResults.length) index = 0;
+    
+    currentSearchIndex = index;
+    const biz = currentSearchResults[index];
+    
+    map.setView([biz.lat, biz.lng], 17);
+    showBusinessInfo(biz, true);
+};
 
 function renderMarkers(data) {
     markerCluster.clearLayers();
@@ -195,7 +224,7 @@ function renderMarkers(data) {
     });
 }
 
-function showBusinessInfo(biz) {
+function showBusinessInfo(biz, fromSearch = false) {
     const panel = document.getElementById('infoPanel');
     const nameEl = document.getElementById('bizName');
     const statusEl = document.getElementById('bizStatus');
@@ -238,6 +267,23 @@ function showBusinessInfo(biz) {
     // Konum Güncelleme Butonunu Bağla
     const updateLocBtn = document.getElementById('updateLocBtn');
     updateLocBtn.onclick = () => handleLocationUpdate(biz);
+
+    // Search Navigation Pagination
+    const searchNav = document.getElementById('searchNav');
+    if (searchNav) {
+        if (fromSearch && currentSearchResults && currentSearchResults.length > 1) {
+            searchNav.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0; background: rgba(0,0,0,0.2); padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                    <button onclick="showSearchResult(currentSearchIndex - 1)" style="padding: 6px 10px; font-weight:bold; cursor:pointer; border-radius:8px; background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; box-shadow: 0 2px 8px rgba(37,99,235,0.3); font-size: 0.85rem;">&laquo; Önceki</button>
+                    <span style="font-size:0.9rem; font-weight:bold; color:#fff; background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 20px;">${currentSearchIndex + 1} / ${currentSearchResults.length}</span>
+                    <button onclick="showSearchResult(currentSearchIndex + 1)" style="padding: 6px 10px; font-weight:bold; cursor:pointer; border-radius:8px; background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; box-shadow: 0 2px 8px rgba(37,99,235,0.3); font-size: 0.85rem;">Sonraki &raquo;</button>
+                </div>
+            `;
+            searchNav.style.display = 'block';
+        } else {
+            searchNav.style.display = 'none';
+        }
+    }
 
     panel.classList.add('active');
     
@@ -411,9 +457,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 let village = String(row[4] || '').trim();
                 let phone = String(row[20] || '').trim() || String(row[21] || '').trim();
                 let status = String(row[11] || '').trim();
+                let tc = String(row[17] || '').replace(/\.\d+$/, '').trim();
                 
                 businesses.push({
                     id: business_id,
+                    tc: tc,
                     name: name,
                     phone: phone,
                     village: village,
