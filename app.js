@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.3";
+const APP_VERSION = "1.3.4";
 let map;
 let markerCluster;
 let businesses = [];
@@ -370,17 +370,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ayarlar Modal Kontrolleri
     const settingsModal = document.getElementById('settingsModal');
     const openSettingsBtn = document.getElementById('openSettingsBtn');
-    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     
     if (openSettingsBtn) {
         openSettingsBtn.addEventListener('click', () => {
             settingsModal.classList.add('active');
-        });
-    }
-    
-    if (closeSettingsBtn) {
-        closeSettingsBtn.addEventListener('click', () => {
-            settingsModal.classList.remove('active');
         });
     }
 
