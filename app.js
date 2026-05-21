@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.2";
+const APP_VERSION = "1.3.3";
 let map;
 let markerCluster;
 let businesses = [];
@@ -384,57 +384,71 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Sürü Excel Yükleme
+    let selectedFiles = { suru: null, detay: null };
+
     document.getElementById('local-suru')?.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const data = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, range: 12 }); // 13. satırdan başlar
-            
-            suruData = {};
-            jsonData.forEach(row => {
-                let biz_id = String(row[4] || '').trim();
-                let animal_type = String(row[23] || '').trim();
-                
-                if (animal_type.includes("Ar") && animal_type.includes("Kovan")) animal_type = "Arı Kovanı";
-                else if (animal_type.includes("Sr")) animal_type = "Sığır";
-                
-                let count = 0;
-                try { count = parseInt(parseFloat(row[27] || 0)); } catch(e) {}
-                
-                if (biz_id && animal_type) {
-                    if (!suruData[biz_id]) suruData[biz_id] = [];
-                    
-                    let existing = suruData[biz_id].find(a => a.type === animal_type);
-                    if (existing) {
-                        existing.count += count;
-                    } else {
-                        suruData[biz_id].push({type: animal_type, count: count});
-                    }
-                }
-            });
-            alert("Sürü verisi başarıyla yüklendi! Lütfen şimdi İşletme Detay dosyasını yükleyin.");
-        };
-        reader.readAsArrayBuffer(file);
+        selectedFiles.suru = e.target.files[0];
     });
 
-    // Detay Excel Yükleme
     document.getElementById('local-detay')?.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const data = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, range: 15 }); // 16. satırdan başlar
-            
+        selectedFiles.detay = e.target.files[0];
+    });
+
+    document.getElementById('processFilesBtn')?.addEventListener('click', async () => {
+        if (!selectedFiles.detay) {
+            alert("Lütfen en azından İşletme Detay Listesi (.xls) dosyasını seçiniz!");
+            return;
+        }
+
+        const processBtn = document.getElementById('processFilesBtn');
+        const oldText = processBtn.innerText;
+        processBtn.innerText = "Yükleniyor...";
+        processBtn.disabled = true;
+
+        try {
+            const readExcel = (file, headerRowIdx) => new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, range: headerRowIdx });
+                    resolve(jsonData);
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
+            // 1. Sürü verisini oku (opsiyonel)
+            suruData = {};
+            if (selectedFiles.suru) {
+                const suruJson = await readExcel(selectedFiles.suru, 12);
+                suruJson.forEach(row => {
+                    let biz_id = String(row[4] || '').trim();
+                    let animal_type = String(row[23] || '').trim();
+                    
+                    if (animal_type.includes("Ar") && animal_type.includes("Kovan")) animal_type = "Arı Kovanı";
+                    else if (animal_type.includes("Sr")) animal_type = "Sığır";
+                    
+                    let count = 0;
+                    try { count = parseInt(parseFloat(row[27] || 0)); } catch(e) {}
+                    
+                    if (biz_id && animal_type) {
+                        if (!suruData[biz_id]) suruData[biz_id] = [];
+                        
+                        let existing = suruData[biz_id].find(a => a.type === animal_type);
+                        if (existing) {
+                            existing.count += count;
+                        } else {
+                            suruData[biz_id].push({type: animal_type, count: count});
+                        }
+                    }
+                });
+            }
+
+            // 2. Detay verisini oku
+            const detayJson = await readExcel(selectedFiles.detay, 15);
             businesses = [];
-            jsonData.forEach(row => {
+            detayJson.forEach(row => {
                 let coord_raw = String(row[23] || '').trim();
                 if (!coord_raw || coord_raw === "0" || coord_raw === "0.0") return;
                 
@@ -475,10 +489,18 @@ document.addEventListener('DOMContentLoaded', () => {
             animalTypes = [...new Set(businesses.flatMap(b => b.animals.map(a => a.type)))].sort();
             setupAnimalFilter();
             renderMarkers(businesses);
-            alert("İşletme Detayları başarıyla yüklendi ve harita güncellendi!");
+            
+            const suruMsg = selectedFiles.suru ? "Sürü detayları ve " : "Sadece ";
+            alert(suruMsg + "İşletme Detayları başarıyla yüklendi ve harita güncellendi!");
             settingsModal.classList.remove('active');
-        };
-        reader.readAsArrayBuffer(file);
+
+        } catch (error) {
+            console.error(error);
+            alert("Dosya okunurken bir hata oluştu: " + error.message);
+        } finally {
+            processBtn.innerText = oldText;
+            processBtn.disabled = false;
+        }
     });
 
     // Oturum kontrolü (Artık sessionStorage kullanıyoruz - Tarayıcı kapanınca silinir)
