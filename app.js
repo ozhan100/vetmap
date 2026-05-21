@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.4";
+const APP_VERSION = "1.3.5";
 let map;
 let markerCluster;
 let businesses = [];
@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         sessionStorage.setItem('tgToken', data.telegram_token);
                         sessionStorage.setItem('tgChat', data.telegram_chat_id);
                     }
-                    sendNotification(`${currentUser} sisteme giriş yaptı! (VetMap)`);
+                    await sendNotification(`${currentUser} sisteme giriş yaptı!\nUygulama: VetMap v${APP_VERSION}`);
                     showApp();
                 } else {
                     loginError.innerText = "Bu hesabın VetMap uygulamasına giriş yetkisi yoktur!";
