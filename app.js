@@ -71,11 +71,6 @@ function initMap() {
 
     // Event Listeners
     document.getElementById('locateBtn').addEventListener('click', locateUser);
-    document.getElementById('updateBtn').addEventListener('click', () => location.reload());
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-        sessionStorage.removeItem('isLoggedIn');
-        location.reload();
-    });
     
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
@@ -551,11 +546,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionStorage.setItem('vetmap_isLoggedIn', 'true');
                     sessionStorage.setItem('vetmap_currentUser', currentUser);
                     
-                    // Telegram ayarlarını kaydediyoruz (vetmap_ prefix ile çakışma önlenir)
-                    if (data.telegram_token) {
-                        sessionStorage.setItem('vetmap_tgToken', data.telegram_token);
-                        sessionStorage.setItem('vetmap_tgChat', data.telegram_chat_id);
-                    }
+                    // ── Telegram tokenini doğrudan tablodan çek (id=2 = VetMap) ──
+                    await loadTelegramConfig('vetmap');
+                    // ─────────────────────────────────────────────────────────────
+
                     await sendNotification(`${currentUser} sisteme giriş yaptı!\nUygulama: VetMap v${APP_VERSION}`);
                     showApp();
                 } else {
@@ -615,39 +609,63 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Header was removed, user can just use refresh to logout if needed
 
-    closeLogoutBtn.addEventListener('click', () => {
+    const logoutModal = document.getElementById('logoutModal');
+
+    document.getElementById('closeLogoutBtn').addEventListener('click', () => {
         logoutModal.classList.remove('active');
     });
 
-    logoutBtn.addEventListener('click', () => {
+    document.getElementById('logoutModalBtn').addEventListener('click', () => {
         sessionStorage.removeItem('vetmap_isLoggedIn');
         sessionStorage.removeItem('vetmap_currentUser');
         sessionStorage.removeItem('vetmap_tgToken');
         sessionStorage.removeItem('vetmap_tgChat');
-        window.location.href = window.location.pathname + "?v=" + Date.now(); // Cache'i aşmak için
+        window.location.href = window.location.pathname + "?v=" + Date.now();
     });
 });
 
 async function sendNotification(message) {
     console.log("Bildirim:", message);
-    
+
     const tgToken = sessionStorage.getItem('vetmap_tgToken');
     const tgChat = sessionStorage.getItem('vetmap_tgChat');
-    
-    if (AUTH_CONFIG.notificationEnabled && tgToken && tgChat) {
-        try {
-            const url = `https://api.telegram.org/bot${tgToken}/sendMessage`;
-            await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: tgChat,
-                    text: `🔔 VetMap Bildirimi:\n${message}\n📅 ${new Date().toLocaleString('tr-TR')}`
-                })
-            });
-        } catch (error) {
-            console.error("Bildirim hatası:", error);
-        }
+
+    if (!tgToken || !tgChat) {
+        console.warn("Telegram yapılandırması eksik, bildirim gönderilemedi.");
+        return;
+    }
+
+    try {
+        const url = `https://api.telegram.org/bot${tgToken}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: tgChat, text: message })
+        });
+    } catch (err) {
+        console.error("Telegram bildirim hatası:", err);
     }
 }
 
+async function loadTelegramConfig(app) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('uygulama_ayarlari')
+            .select('tg_token, tg_chat_id')
+            .eq('uygulama_adi', app)
+            .single();
+
+        if (error) {
+            console.error(`❌ loadTelegramConfig (${app}) hatası:`, error);
+            return;
+        }
+
+        if (data) {
+            sessionStorage.setItem('vetmap_tgToken', data.tg_token || '');
+            sessionStorage.setItem('vetmap_tgChat', data.tg_chat_id || '');
+            console.log(`✅ Telegram config (${app}) yüklendi.`);
+        }
+    } catch (err) {
+        console.error(`❌ loadTelegramConfig (${app}) beklenmeyen hata:`, err);
+    }
+}
