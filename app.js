@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.8";
+const APP_VERSION = "1.3.9";
 let map;
 let markerCluster;
 let businesses = [];
@@ -63,7 +63,7 @@ function initMap() {
         spiderfyOnMaxZoom: true,
         disableClusteringAtZoom: 17
     });
-    
+
     map.addLayer(markerCluster);
 
     // Load Data
@@ -71,7 +71,7 @@ function initMap() {
 
     // Event Listeners
     document.getElementById('locateBtn').addEventListener('click', locateUser);
-    
+
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
 
@@ -81,7 +81,7 @@ function initMap() {
         }
     });
     searchBtn.addEventListener('click', () => applyFilters(true));
-    
+
     // Animal Filter Listeners
     const filterBtn = document.getElementById('animalFilterBtn');
     const dropdown = document.getElementById('animalDropdown');
@@ -102,7 +102,7 @@ function initMap() {
         checkboxes.forEach(cb => cb.checked = e.target.checked);
         updateFilters();
     });
-    
+
     // Close panel when clicking on map
     map.on('click', () => {
         document.getElementById('infoPanel').classList.remove('active');
@@ -137,7 +137,7 @@ function setupAnimalFilter() {
 function updateFilters() {
     const checked = Array.from(document.querySelectorAll('.animal-checkbox:checked')).map(cb => cb.value);
     selectedAnimals = checked;
-    
+
     applyFilters();
 }
 
@@ -152,7 +152,7 @@ function applyFilters(forceZoom = false) {
     const filtered = businesses.filter(biz => {
         // Search Filter (İsim, Köy, Telefon, TC, İşletme No)
         if (query) {
-            const exactNumberMatch = 
+            const exactNumberMatch =
                 (biz.phone && biz.phone.replace(/\s+/g, '').includes(queryNoSpaces)) ||
                 (biz.tc && biz.tc.includes(queryNoSpaces)) ||
                 (biz.id && biz.id.toLocaleLowerCase('tr-TR').includes(queryNoSpaces));
@@ -161,7 +161,7 @@ function applyFilters(forceZoom = false) {
                 // Combine fields for word-by-word search (like "Akbaşlar Mustafa")
                 const bizText = `${biz.name} ${biz.village}`.toLocaleLowerCase('tr-TR');
                 const multiWordMatch = searchTerms.every(term => bizText.includes(term));
-                
+
                 if (!multiWordMatch) return false;
             }
         }
@@ -188,15 +188,15 @@ function applyFilters(forceZoom = false) {
     }
 }
 
-window.showSearchResult = function(index) {
+window.showSearchResult = function (index) {
     if (!currentSearchResults || currentSearchResults.length === 0) return;
-    
+
     if (index < 0) index = currentSearchResults.length - 1;
     if (index >= currentSearchResults.length) index = 0;
-    
+
     currentSearchIndex = index;
     const biz = currentSearchResults[index];
-    
+
     map.setView([biz.lat, biz.lng], 17);
     showBusinessInfo(biz, true);
 };
@@ -207,7 +207,7 @@ function renderMarkers(data) {
 
     data.forEach(biz => {
         const marker = L.marker([biz.lat, biz.lng]);
-        
+
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             showBusinessInfo(biz);
@@ -281,7 +281,7 @@ function showBusinessInfo(biz, fromSearch = false) {
     }
 
     panel.classList.add('active');
-    
+
     // Center map on marker
     map.setView([biz.lat, biz.lng], 16);
 }
@@ -294,10 +294,10 @@ async function handleLocationUpdate(biz) {
 
     const currentPos = userMarker.getLatLng();
     const newCoords = `${currentPos.lat}\n${currentPos.lng}`; // Excel uyumlu alt alta format
-    
+
     if (confirm(`${biz.name} işletmesinin konumunu şu an bulunduğunuz yer olarak güncellemek istiyor musunuz?`)) {
         const message = `📍 KONUM GÜNCELLEME TALEBİ\n------------------------\n🏢 İşletme: ${biz.name}\n🆔 ID: ${biz.id}\n👤 Bildiren: ${currentUser}\n\n📋 EXCEL İÇİN YENİ KOORDİNAT:\n${newCoords}`;
-        
+
         await sendNotification(message);
         alert("Güncelleme talebi başarıyla iletildi. Ofise döndüğünüzde Excel'i bu koordinatlarla güncelleyebilirsiniz.");
     }
@@ -326,9 +326,9 @@ function locateUser() {
                         <div class="user-dot"></div>
                     `
                 });
-                userMarker = L.marker(latlng, { 
+                userMarker = L.marker(latlng, {
                     icon: userIcon,
-                    zIndexOffset: 1000 
+                    zIndexOffset: 1000
                 }).addTo(map);
             }
 
@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const openSettingsBtn = document.getElementById('openSettingsBtn');
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
-    
+
     if (openSettingsBtn) {
         openSettingsBtn.addEventListener('click', () => {
             settingsModal.classList.add('active');
@@ -410,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
+                    const workbook = XLSX.read(data, { type: 'array' });
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, range: headerRowIdx });
                     resolve(jsonData);
@@ -425,21 +425,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 suruJson.forEach(row => {
                     let biz_id = String(row[4] || '').trim();
                     let animal_type = String(row[23] || '').trim();
-                    
+
                     if (animal_type.includes("Ar") && animal_type.includes("Kovan")) animal_type = "Arı Kovanı";
                     else if (animal_type.includes("Sr")) animal_type = "Sığır";
-                    
+
                     let count = 0;
-                    try { count = parseInt(parseFloat(row[27] || 0)); } catch(e) {}
-                    
+                    try { count = parseInt(parseFloat(row[27] || 0)); } catch (e) { }
+
                     if (biz_id && animal_type) {
                         if (!suruData[biz_id]) suruData[biz_id] = [];
-                        
+
                         let existing = suruData[biz_id].find(a => a.type === animal_type);
                         if (existing) {
                             existing.count += count;
                         } else {
-                            suruData[biz_id].push({type: animal_type, count: count});
+                            suruData[biz_id].push({ type: animal_type, count: count });
                         }
                     }
                 });
@@ -451,28 +451,28 @@ document.addEventListener('DOMContentLoaded', () => {
             detayJson.forEach(row => {
                 let coord_raw = String(row[23] || '').trim();
                 if (!coord_raw || coord_raw === "0" || coord_raw === "0.0") return;
-                
+
                 let parts = coord_raw.split(/[\s\n,]+/);
                 if (parts.length < 2) return;
-                
+
                 let v1 = parseFloat(parts[0]);
                 let v2 = parseFloat(parts[1]);
                 if (isNaN(v1) || isNaN(v2)) return;
-                
+
                 let lat, lng;
                 if (v1 > 26 && v1 < 32 && v2 > 36 && v2 < 42) {
                     lat = v2; lng = v1;
                 } else {
                     lat = v1; lng = v2;
                 }
-                
+
                 let business_id = String(row[8] || '').trim();
                 let name = (String(row[13] || '').trim() + " " + String(row[12] || '').trim()).trim();
                 let village = String(row[4] || '').trim();
                 let phone = String(row[20] || '').trim() || String(row[21] || '').trim();
                 let status = String(row[11] || '').trim();
                 let tc = String(row[17] || '').replace(/\.\d+$/, '').trim();
-                
+
                 businesses.push({
                     id: business_id,
                     tc: tc,
@@ -485,11 +485,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     animals: suruData[business_id] || []
                 });
             });
-            
+
             animalTypes = [...new Set(businesses.flatMap(b => b.animals.map(a => a.type)))].sort();
             setupAnimalFilter();
             renderMarkers(businesses);
-            
+
             const suruMsg = selectedFiles.suru ? "Sürü detayları ve " : "Sadece ";
             alert(suruMsg + "İşletme Detayları başarıyla yüklendi ve harita güncellendi!");
             settingsModal.classList.remove('active');
@@ -545,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentUser = data.kullanici_adi;
                     sessionStorage.setItem('vetmap_isLoggedIn', 'true');
                     sessionStorage.setItem('vetmap_currentUser', currentUser);
-                    
+
                     if (data.telegram_token) {
                         sessionStorage.setItem('vetmap_tgToken', data.telegram_token);
                         sessionStorage.setItem('vetmap_tgChat', data.telegram_chat_id);
@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showApp() {
         loginScreen.classList.add('hidden');
         appOverlay.style.display = 'flex';
-        
+
         // Güncelleme butonu herkese görünür
         updateBtn.style.display = 'flex';
 
@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Şimdilik "Güncelle" butonu yanına bir "Çıkış" butonu eklemedik ama logout logicini koruyalım.
     // Eğer kullanıcı çıkmak isterse sayfayı yenilemesi yeterli (sessionStorage kullandığımız için)
     // Veya logoyu tıklanabilir yapıp çıkış modala bağlayabiliriz.
-    
+
     // Header was removed, user can just use refresh to logout if needed
 
     const logoutModal = document.getElementById('logoutModal');
