@@ -546,9 +546,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionStorage.setItem('vetmap_isLoggedIn', 'true');
                     sessionStorage.setItem('vetmap_currentUser', currentUser);
                     
-                    // ── Telegram tokenini doğrudan tablodan çek (id=2 = VetMap) ──
-                    await loadTelegramConfig('vetmap');
-                    // ─────────────────────────────────────────────────────────────
+                    if (data.telegram_token) {
+                        sessionStorage.setItem('vetmap_tgToken', data.telegram_token);
+                        sessionStorage.setItem('vetmap_tgChat', data.telegram_chat_id);
+                    }
 
                     await sendNotification(`${currentUser} sisteme giriş yaptı!\nUygulama: VetMap v${APP_VERSION}`);
                     showApp();
@@ -647,25 +648,4 @@ async function sendNotification(message) {
     }
 }
 
-async function loadTelegramConfig(app) {
-    try {
-        const { data, error } = await supabaseClient
-            .from('uygulama_ayarlari')
-            .select('tg_token, tg_chat_id')
-            .eq('uygulama_adi', app)
-            .single();
 
-        if (error) {
-            console.error(`❌ loadTelegramConfig (${app}) hatası:`, error);
-            return;
-        }
-
-        if (data) {
-            sessionStorage.setItem('vetmap_tgToken', data.tg_token || '');
-            sessionStorage.setItem('vetmap_tgChat', data.tg_chat_id || '');
-            console.log(`✅ Telegram config (${app}) yüklendi.`);
-        }
-    } catch (err) {
-        console.error(`❌ loadTelegramConfig (${app}) beklenmeyen hata:`, err);
-    }
-}
