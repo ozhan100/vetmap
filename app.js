@@ -1,4 +1,25 @@
-const APP_VERSION = "1.3.9";
+const APP_VERSION = "1.4.0";
+
+/**
+ * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
+ * Türkçe büyük → küçük harf dönüşümünü tüm tarayıcılarda (iOS Safari dahil) tutarlı yapar.
+ * toLocaleLowerCase('tr-TR') mobil WebKit/Blink'te güvenilmez olabileceğinden
+ * replace() zinciri + toLowerCase() tercih edilir.
+ */
+function normalizeText(text) {
+    if (text === null || text === undefined || text === '') return '';
+    return String(text)
+        .replace(/İ/g, 'i')
+        .replace(/I/g, 'ı')
+        .replace(/Ş/g, 'ş')
+        .replace(/Ğ/g, 'ğ')
+        .replace(/Ü/g, 'ü')
+        .replace(/Ö/g, 'ö')
+        .replace(/Ç/g, 'ç')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+}
 let map;
 let markerCluster;
 let businesses = [];
@@ -143,11 +164,11 @@ function updateFilters() {
 
 function applyFilters(forceZoom = false) {
     const searchInput = document.getElementById('searchInput');
-    const query = searchInput.value.toLocaleLowerCase('tr-TR').trim();
+    const query = normalizeText(searchInput.value);
     const queryNoSpaces = query.replace(/\s+/g, '');
     const selectAll = document.getElementById('selectAllAnimals').checked;
 
-    const searchTerms = query.split(/\s+/);
+    const searchTerms = query.split(/\s+/).filter(Boolean);
 
     const filtered = businesses.filter(biz => {
         // Search Filter (İsim, Köy, Telefon, TC, İşletme No)
@@ -155,11 +176,11 @@ function applyFilters(forceZoom = false) {
             const exactNumberMatch =
                 (biz.phone && biz.phone.replace(/\s+/g, '').includes(queryNoSpaces)) ||
                 (biz.tc && biz.tc.includes(queryNoSpaces)) ||
-                (biz.id && biz.id.toLocaleLowerCase('tr-TR').includes(queryNoSpaces));
+                (biz.id && normalizeText(biz.id).includes(queryNoSpaces));
 
             if (!exactNumberMatch) {
                 // Combine fields for word-by-word search (like "Akbaşlar Mustafa")
-                const bizText = `${biz.name} ${biz.village}`.toLocaleLowerCase('tr-TR');
+                const bizText = normalizeText(`${biz.name || ''} ${biz.village || ''}`);
                 const multiWordMatch = searchTerms.every(term => bizText.includes(term));
 
                 if (!multiWordMatch) return false;
