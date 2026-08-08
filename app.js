@@ -1,4 +1,5 @@
-const APP_VERSION = "1.4.0";
+// her güncellemeden sonra APP_VERSION 0.0.1 arttırılsın
+const APP_VERSION = "1.5.0";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -427,94 +428,8 @@ document.addEventListener('DOMContentLoaded', () => {
         processBtn.disabled = true;
 
         try {
-            const readExcel = (file, headerRowIdx) => new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, range: headerRowIdx });
-                    resolve(jsonData);
-                };
-                reader.readAsArrayBuffer(file);
-            });
-
-            // 1. Sürü verisini oku (opsiyonel)
-            suruData = {};
-            if (selectedFiles.suru) {
-                const suruJson = await readExcel(selectedFiles.suru, 12);
-                suruJson.forEach(row => {
-                    let biz_id = String(row[4] || '').trim();
-                    let animal_type = String(row[23] || '').trim();
-
-                    if (animal_type.includes("Ar") && animal_type.includes("Kovan")) animal_type = "Arı Kovanı";
-                    else if (animal_type.includes("Sr")) animal_type = "Sığır";
-
-                    let count = 0;
-                    try { count = parseInt(parseFloat(row[27] || 0)); } catch (e) { }
-
-                    if (biz_id && animal_type) {
-                        if (!suruData[biz_id]) suruData[biz_id] = [];
-
-                        let existing = suruData[biz_id].find(a => a.type === animal_type);
-                        if (existing) {
-                            existing.count += count;
-                        } else {
-                            suruData[biz_id].push({ type: animal_type, count: count });
-                        }
-                    }
-                });
-            }
-
-            // 2. Detay verisini oku
-            const detayJson = await readExcel(selectedFiles.detay, 15);
-            businesses = [];
-            detayJson.forEach(row => {
-                let coord_raw = String(row[23] || '').trim();
-                if (!coord_raw || coord_raw === "0" || coord_raw === "0.0") return;
-
-                let parts = coord_raw.split(/[\s\n,]+/);
-                if (parts.length < 2) return;
-
-                let v1 = parseFloat(parts[0]);
-                let v2 = parseFloat(parts[1]);
-                if (isNaN(v1) || isNaN(v2)) return;
-
-                let lat, lng;
-                if (v1 > 26 && v1 < 32 && v2 > 36 && v2 < 42) {
-                    lat = v2; lng = v1;
-                } else {
-                    lat = v1; lng = v2;
-                }
-
-                let business_id = String(row[8] || '').trim();
-                let name = (String(row[13] || '').trim() + " " + String(row[12] || '').trim()).trim();
-                let village = String(row[4] || '').trim();
-                let phone = String(row[20] || '').trim() || String(row[21] || '').trim();
-                let status = String(row[11] || '').trim();
-                let tc = String(row[17] || '').replace(/\.\d+$/, '').trim();
-
-                businesses.push({
-                    id: business_id,
-                    tc: tc,
-                    name: name,
-                    phone: phone,
-                    village: village,
-                    status: status,
-                    lat: lat,
-                    lng: lng,
-                    animals: suruData[business_id] || []
-                });
-            });
-
-            animalTypes = [...new Set(businesses.flatMap(b => b.animals.map(a => a.type)))].sort();
-            setupAnimalFilter();
-            renderMarkers(businesses);
-
-            const suruMsg = selectedFiles.suru ? "Sürü detayları ve " : "Sadece ";
-            alert(suruMsg + "İşletme Detayları başarıyla yüklendi ve harita güncellendi!");
+            await processSelectedFiles(selectedFiles);
             settingsModal.classList.remove('active');
-
         } catch (error) {
             console.error(error);
             alert("Dosya okunurken bir hata oluştu: " + error.message);
@@ -606,6 +521,17 @@ document.addEventListener('DOMContentLoaded', () => {
             initMap();
             loginScreen.style.display = 'none';
         }, 500);
+
+        // Otomatik veri yükleme: girişten hemen sonra Downloads klasörünü tara
+        setTimeout(async () => {
+            try {
+                if (typeof window.autoLoadFromDownloads === 'function') {
+                    await window.autoLoadFromDownloads();
+                }
+            } catch (err) {
+                console.warn('Otomatik veri yükleme başarısız:', err);
+            }
+        }, 1000);
     }
 
     // Güncelleme İşlemi
@@ -645,6 +571,95 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = window.location.pathname + "?v=" + Date.now();
     });
 });
+
+async function processSelectedFiles(files) {
+    const readExcel = (file, headerRowIdx) => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, range: headerRowIdx });
+            resolve(jsonData);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // 1. Sürü verisini oku (opsiyonel)
+    suruData = {};
+    if (files.suru) {
+        const suruJson = await readExcel(files.suru, 12);
+        suruJson.forEach(row => {
+            let biz_id = String(row[4] || '').trim();
+            let animal_type = String(row[23] || '').trim();
+
+            if (animal_type.includes("Ar") && animal_type.includes("Kovan")) animal_type = "Arı Kovanı";
+            else if (animal_type.includes("Sr")) animal_type = "Sığır";
+
+            let count = 0;
+            try { count = parseInt(parseFloat(row[27] || 0)); } catch (e) { }
+
+            if (biz_id && animal_type) {
+                if (!suruData[biz_id]) suruData[biz_id] = [];
+
+                let existing = suruData[biz_id].find(a => a.type === animal_type);
+                if (existing) {
+                    existing.count += count;
+                } else {
+                    suruData[biz_id].push({ type: animal_type, count: count });
+                }
+            }
+        });
+    }
+
+    // 2. Detay verisini oku
+    const detayJson = await readExcel(files.detay, 15);
+    businesses = [];
+    detayJson.forEach(row => {
+        let coord_raw = String(row[23] || '').trim();
+        if (!coord_raw || coord_raw === "0" || coord_raw === "0.0") return;
+
+        let parts = coord_raw.split(/[\s\n,]+/);
+        if (parts.length < 2) return;
+
+        let v1 = parseFloat(parts[0]);
+        let v2 = parseFloat(parts[1]);
+        if (isNaN(v1) || isNaN(v2)) return;
+
+        let lat, lng;
+        if (v1 > 26 && v1 < 32 && v2 > 36 && v2 < 42) {
+            lat = v2; lng = v1;
+        } else {
+            lat = v1; lng = v2;
+        }
+
+        let business_id = String(row[8] || '').trim();
+        let name = (String(row[13] || '').trim() + " " + String(row[12] || '').trim()).trim();
+        let village = String(row[4] || '').trim();
+        let phone = String(row[20] || '').trim() || String(row[21] || '').trim();
+        let status = String(row[11] || '').trim();
+        let tc = String(row[17] || '').replace(/\.\d+$/, '').trim();
+
+        businesses.push({
+            id: business_id,
+            tc: tc,
+            name: name,
+            phone: phone,
+            village: village,
+            status: status,
+            lat: lat,
+            lng: lng,
+            animals: suruData[business_id] || []
+        });
+    });
+
+    animalTypes = [...new Set(businesses.flatMap(b => b.animals.map(a => a.type)))].sort();
+    setupAnimalFilter();
+    renderMarkers(businesses);
+
+    const suruMsg = files.suru ? "Sürü detayları ve " : "Sadece ";
+    alert(suruMsg + "İşletme Detayları başarıyla yüklendi ve harita güncellendi!");
+}
 
 async function sendNotification(message) {
     console.log("Bildirim:", message);
