@@ -4,7 +4,13 @@
 # Sadece istediğimiz dosyaların takibine izin ver
 !index.html
 !app.js
-!style.css
+!auto-load.js
+!styles.css
+!manifest.json
+!sw.js
+!icons/
+!icons/*
+!login_bg.png
 
 # .gitignore dosyasının kendisini de takip et
 !.gitignore
