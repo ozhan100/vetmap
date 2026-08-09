@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.50";
+const APP_VERSION = "1.51";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
