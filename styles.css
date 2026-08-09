@@ -760,6 +760,25 @@ h1 {
     font-size: 0.9rem;
 }
 
+.animal-dot {
+    flex-shrink: 0;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.35);
+}
+
+.legend-extra {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--glass-border);
+    margin-top: 4px;
+}
+
 /* Animal Stats in Info Panel */
 .animal-stats {
     margin-top: 20px;

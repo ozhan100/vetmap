@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.51";
+const APP_VERSION = "1.52";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -29,6 +29,42 @@ let selectedAnimals = [];
 let userMarker;
 let allMarkers = [];
 let suruData = {};
+
+// Hayvan türlerine göre renklendirme.
+// Uydu görüntüsündeki tonlarla karışmaması için parlak ve ayırt edici renkler kullanılır.
+const ANIMAL_TYPE_COLORS = {
+    'Sığır':      { color: '#E63946', name: 'Sığır' },
+    'Koyun':      { color: '#457B9D', name: 'Koyun' },
+    'Keçi':       { color: '#9D4EDD', name: 'Keçi' },
+    'Manda':      { color: '#8B5A2B', name: 'Manda' },
+    'At':         { color: '#F77F00', name: 'At' },
+    'Eşek':       { color: '#DB7093', name: 'Eşek' },
+    'Tavuk':      { color: '#2A9D8F', name: 'Tavuk' },
+    'Arı Kovanı': { color: '#FFD60A', name: 'Arı Kovanı' },
+    'KARIŞIK':    { color: '#FFFFFF', name: 'Karışık (2+ hayvan türü)' },
+    'YOK':        { color: '#808080', name: 'Hayvan Kaydı Yok' }
+};
+
+// Tanımlı olmayan yeni hayvan türleri için paletten otomatik renk seçilir.
+const UNKNOWN_ANIMAL_COLORS = ['#E76F51', '#264653', '#E5989B', '#B56576', '#43AA8B', '#577590', '#FF9E00', '#6D597A'];
+
+function getAnimalColor(type) {
+    if (ANIMAL_TYPE_COLORS[type]) return ANIMAL_TYPE_COLORS[type].color;
+    let hash = 0;
+    for (let i = 0; i < type.length; i++) hash = (hash * 31 + type.charCodeAt(i)) >>> 0;
+    return UNKNOWN_ANIMAL_COLORS[hash % UNKNOWN_ANIMAL_COLORS.length];
+}
+
+function getAnimalTypeColor(biz) {
+    if (!biz.animals || biz.animals.length === 0) return ANIMAL_TYPE_COLORS.YOK.color;
+    const types = new Set(biz.animals.map(a => a.type));
+    if (types.size > 1) return ANIMAL_TYPE_COLORS.KARIŞIK.color;
+    return getAnimalColor([...types][0]);
+}
+
+function isAnimalKarisik(biz) {
+    return !!(biz.animals && new Set(biz.animals.map(a => a.type)).size > 1);
+}
 
 // Auth Credentials
 const AUTH_CONFIG = {
@@ -140,12 +176,27 @@ async function loadData() {
 
 function setupAnimalFilter() {
     const list = document.getElementById('animalList');
-    list.innerHTML = animalTypes.map(type => `
+    list.innerHTML = animalTypes.map(type => {
+        const c = getAnimalColor(type);
+        return `
         <label class="checkbox-item">
             <input type="checkbox" class="animal-checkbox" value="${type}" checked>
+            <span class="animal-dot" style="background:${c}"></span>
             <span>${type}</span>
         </label>
-    `).join('');
+    `;
+    }).join('');
+
+    list.innerHTML += `
+        <div class="legend-extra">
+            <span class="animal-dot" style="background:${ANIMAL_TYPE_COLORS.KARIŞIK.color}"></span>
+            <span>Karışık (2+ hayvan türü)</span>
+        </div>
+        <div class="legend-extra">
+            <span class="animal-dot" style="background:${ANIMAL_TYPE_COLORS.YOK.color}"></span>
+            <span>Hayvan Kaydı Yok</span>
+        </div>
+    `;
 
     document.querySelectorAll('.animal-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
@@ -228,7 +279,17 @@ function renderMarkers(data) {
     allMarkers = [];
 
     data.forEach(biz => {
-        const marker = L.marker([biz.lat, biz.lng]);
+        const fillColor = getAnimalTypeColor(biz);
+        const karisik = isAnimalKarisik(biz);
+
+        const marker = L.circleMarker([biz.lat, biz.lng], {
+            radius: karisik ? 10 : 8,
+            color: karisik ? '#1d3557' : '#ffffff',
+            weight: 2,
+            opacity: 0.9,
+            fillColor: fillColor,
+            fillOpacity: 0.85
+        });
 
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
@@ -261,12 +322,15 @@ function showBusinessInfo(biz, fromSearch = false) {
     // Animal Stats
     const statsEl = document.getElementById('animalStats');
     if (biz.animals && biz.animals.length > 0) {
-        statsEl.innerHTML = biz.animals.map(a => `
-            <div class="animal-badge">
-                <span class="label">${a.type}</span>
+        statsEl.innerHTML = biz.animals.map(a => {
+            const c = getAnimalColor(a.type);
+            return `
+            <div class="animal-badge" style="border-color:${c}55; background:${c}1f;">
+                <span class="label" style="color:${c};">${a.type}</span>
                 <span class="count">${a.count}</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
         statsEl.style.display = 'flex';
     } else {
         statsEl.style.display = 'none';
