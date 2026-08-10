@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.54";
+const APP_VERSION = "1.55";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -65,11 +65,6 @@ function getAnimalTypeColor(biz) {
 function isAnimalKarisik(biz) {
     return !!(biz.animals && new Set(biz.animals.map(a => a.type)).size > 1);
 }
-
-// Auth Credentials
-const AUTH_CONFIG = {
-    notificationEnabled: true
-};
 
 // SUPABASE AYARLARI (Supabase panelinden alıp buraya yapıştırın)
 const SUPABASE_URL = 'https://tjedetetzqenwdlqgwiv.supabase.co';
@@ -345,10 +340,6 @@ function showBusinessInfo(biz, fromSearch = false) {
 
     navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${biz.lat},${biz.lng}`;
 
-    // Konum Güncelleme Butonunu Bağla
-    const updateLocBtn = document.getElementById('updateLocBtn');
-    updateLocBtn.onclick = () => handleLocationUpdate(biz);
-
     // Search Navigation Pagination
     const searchNav = document.getElementById('searchNav');
     if (searchNav) {
@@ -370,23 +361,6 @@ function showBusinessInfo(biz, fromSearch = false) {
 
     // Center map on marker
     map.setView([biz.lat, biz.lng], 16);
-}
-
-async function handleLocationUpdate(biz) {
-    if (!userMarker) {
-        alert("Şu anki konumunuz henüz belirlenemedi. Lütfen GPS'in açık olduğundan emin olun.");
-        return;
-    }
-
-    const currentPos = userMarker.getLatLng();
-    const newCoords = `${currentPos.lat}\n${currentPos.lng}`; // Excel uyumlu alt alta format
-
-    if (confirm(`${biz.name} işletmesinin konumunu şu an bulunduğunuz yer olarak güncellemek istiyor musunuz?`)) {
-        const message = `📍 KONUM GÜNCELLEME TALEBİ\n------------------------\n🏢 İşletme: ${biz.name}\n🆔 ID: ${biz.id}\n👤 Bildiren: ${currentUser}\n\n📋 EXCEL İÇİN YENİ KOORDİNAT:\n${newCoords}`;
-
-        await sendNotification(message);
-        alert("Güncelleme talebi başarıyla iletildi. Ofise döndüğünüzde Excel'i bu koordinatlarla güncelleyebilirsiniz.");
-    }
 }
 
 function locateUser() {
@@ -561,7 +535,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionStorage.setItem('vetmap_sessionToken', data.token);
                     sessionStorage.setItem('vetmap_currentUser', currentUser);
 
-                    await sendNotification(`${currentUser} sisteme giriş yaptı!\nUygulama: VetMap v${APP_VERSION}`);
                     showApp();
                 } else {
                     loginError.innerText = "Bu hesabın VetMap uygulamasına giriş yetkisi yoktur!";
@@ -623,7 +596,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Oturum: token sessionStorage'da tutulur; sekme kapatılınca otomatik çıkış olur.
+    // Oturum: token sessionStorage'da tutulur; sekme kapanınca otomatik çıkış olur.
+
+    // Kullanım istatistiği: açıkken 2 dakikada bir sunucuya aktiflik sinyali gönder
+    setInterval(async () => {
+        const aktifToken = sessionStorage.getItem('vetmap_sessionToken');
+        if (!aktifToken) return;
+        try {
+            await supabaseClient.rpc('aktiflik_bildir', {
+                p_token: aktifToken,
+                p_uygulama_adi: 'VetMap'
+            });
+        } catch (err) { /* sessiz geç */ }
+    }, 120000);
 });
 
 async function processSelectedFiles(files) {
@@ -713,19 +698,6 @@ async function processSelectedFiles(files) {
 
     const suruMsg = files.suru ? "Sürü detayları ve " : "Sadece ";
     alert(suruMsg + "İşletme Detayları başarıyla yüklendi ve harita güncellendi!");
-}
-
-async function sendNotification(message) {
-    console.log("Bildirim:", message);
-    try {
-        await supabaseClient.rpc('bildirim_gonder', {
-            p_token: sessionStorage.getItem('vetmap_sessionToken'),
-            p_uygulama_adi: 'VetMap',
-            p_mesaj: message
-        });
-    } catch (err) {
-        console.error("Telegram bildirim hatası:", err);
-    }
 }
 
 
