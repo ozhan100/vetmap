@@ -546,11 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionStorage.setItem('vetmap_isLoggedIn', 'true');
                     sessionStorage.setItem('vetmap_currentUser', currentUser);
 
-                    if (data.telegram_token) {
-                        sessionStorage.setItem('vetmap_tgToken', data.telegram_token);
-                        sessionStorage.setItem('vetmap_tgChat', data.telegram_chat_id);
-                    }
-
                     await sendNotification(`${currentUser} sisteme giriş yaptı!\nUygulama: VetMap v${APP_VERSION}`);
                     showApp();
                 } else {
@@ -630,8 +625,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logoutModalBtn').addEventListener('click', () => {
         sessionStorage.removeItem('vetmap_isLoggedIn');
         sessionStorage.removeItem('vetmap_currentUser');
-        sessionStorage.removeItem('vetmap_tgToken');
-        sessionStorage.removeItem('vetmap_tgChat');
         window.location.href = window.location.pathname + "?v=" + Date.now();
     });
 });
@@ -727,21 +720,10 @@ async function processSelectedFiles(files) {
 
 async function sendNotification(message) {
     console.log("Bildirim:", message);
-
-    const tgToken = sessionStorage.getItem('vetmap_tgToken');
-    const tgChat = sessionStorage.getItem('vetmap_tgChat');
-
-    if (!tgToken || !tgChat) {
-        console.warn("Telegram yapılandırması eksik, bildirim gönderilemedi.");
-        return;
-    }
-
     try {
-        const url = `https://api.telegram.org/bot${tgToken}/sendMessage`;
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: tgChat, text: message })
+        await supabaseClient.rpc('bildirim_gonder', {
+            p_uygulama_adi: 'VetMap',
+            p_mesaj: message
         });
     } catch (err) {
         console.error("Telegram bildirim hatası:", err);
