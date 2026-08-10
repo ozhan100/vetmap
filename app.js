@@ -442,7 +442,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const appOverlay = document.getElementById('appOverlay');
     const loginError = document.getElementById('loginError');
     const updateBtn = document.getElementById('updateBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
 
     // Versiyonu yazdır
     document.getElementById('versionTag').textContent = "V" + APP_VERSION;
@@ -624,27 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Oturumu Kapatma (Artık bir buton yerine bir modal açıyoruz veya direkt kapatıyoruz)
-    // Ancak kullanıcı arama kutusuna basmak için header'a tıklayabilir.
-    // Şimdilik "Güncelle" butonu yanına bir "Çıkış" butonu eklemedik ama logout logicini koruyalım.
-    // Eğer kullanıcı çıkmak isterse sayfayı yenilemesi yeterli (sessionStorage kullandığımız için)
-    // Veya logoyu tıklanabilir yapıp çıkış modala bağlayabiliriz.
-
-    // Header was removed, user can just use refresh to logout if needed
-
-    const logoutModal = document.getElementById('logoutModal');
-
-    document.getElementById('closeLogoutBtn').addEventListener('click', () => {
-        logoutModal.classList.remove('active');
-    });
-
-    document.getElementById('logoutModalBtn').addEventListener('click', () => {
-        const token = sessionStorage.getItem('vetmap_sessionToken');
-        if (token) supabaseClient.rpc('oturum_kapat', { p_token: token }).catch(() => {});
-        sessionStorage.removeItem('vetmap_sessionToken');
-        sessionStorage.removeItem('vetmap_currentUser');
-        window.location.href = window.location.pathname + "?v=" + Date.now();
-    });
+    // Oturum: token sessionStorage'da tutulur; sekme kapatılınca otomatik çıkış olur.
 });
 
 async function processSelectedFiles(files) {
