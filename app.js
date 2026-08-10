@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.53";
+const APP_VERSION = "1.54";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -740,6 +740,7 @@ async function sendNotification(message) {
     console.log("Bildirim:", message);
     try {
         await supabaseClient.rpc('bildirim_gonder', {
+            p_token: sessionStorage.getItem('vetmap_sessionToken'),
             p_uygulama_adi: 'VetMap',
             p_mesaj: message
         });
