@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.52";
+const APP_VERSION = "1.53";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -503,11 +503,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Oturum kontrolü (Artık sessionStorage kullanıyoruz - Tarayıcı kapanınca silinir)
-    const savedLogin = sessionStorage.getItem('vetmap_isLoggedIn');
-    if (savedLogin === 'true') {
-        currentUser = sessionStorage.getItem('vetmap_currentUser');
-        showApp();
+    // Oturum kontrolü — token yalnızca SUNUCUDA doğrulanırsa geçerlidir.
+    // (İstemci bayrağına güvenilmez — sahte "isLoggedIn=true" ile giriş atlanamaz.)
+    const token = sessionStorage.getItem('vetmap_sessionToken');
+    if (token) {
+        (async () => {
+            try {
+                const { data, error } = await supabaseClient.rpc('oturum_dogrula', {
+                    p_token: token,
+                    p_uygulama_adi: 'VetMap'
+                });
+                if (!error && data && data.gecerli) {
+                    currentUser = data.kullanici_adi;
+                    showApp();
+                    return;
+                }
+            } catch (err) {
+                console.warn('Oturum doğrulaması başarısız:', err);
+            }
+            sessionStorage.removeItem('vetmap_sessionToken');
+            sessionStorage.removeItem('vetmap_currentUser');
+        })();
     }
 
     loginForm.addEventListener('submit', async (e) => {
@@ -543,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // VetMap uygulaması için yetki kontrolü
                 if (data.vetmap_yetkisi) {
                     currentUser = data.kullanici_adi;
-                    sessionStorage.setItem('vetmap_isLoggedIn', 'true');
+                    sessionStorage.setItem('vetmap_sessionToken', data.token);
                     sessionStorage.setItem('vetmap_currentUser', currentUser);
 
                     await sendNotification(`${currentUser} sisteme giriş yaptı!\nUygulama: VetMap v${APP_VERSION}`);
@@ -623,7 +639,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('logoutModalBtn').addEventListener('click', () => {
-        sessionStorage.removeItem('vetmap_isLoggedIn');
+        const token = sessionStorage.getItem('vetmap_sessionToken');
+        if (token) supabaseClient.rpc('oturum_kapat', { p_token: token }).catch(() => {});
+        sessionStorage.removeItem('vetmap_sessionToken');
         sessionStorage.removeItem('vetmap_currentUser');
         window.location.href = window.location.pathname + "?v=" + Date.now();
     });
