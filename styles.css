@@ -663,6 +663,18 @@ h1 {
     border-radius: 8px;
 }
 
+.kvkk-notice {
+    margin-top: 18px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
 /* Removed old controls styles */
 
 .menu-item {
