@@ -266,7 +266,7 @@ window.showSearchResult = function (index) {
     const biz = currentSearchResults[index];
 
     map.setView([biz.lat, biz.lng], 17);
-    showBusinessInfo(biz, true);
+    showBusinessInfo(biz);
 };
 
 function renderMarkers(data) {
@@ -288,6 +288,11 @@ function renderMarkers(data) {
 
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
+            // Aktif arama varsa tıklanan işletmenin arama listesindeki sırasını bul
+            if (currentSearchResults.length > 0) {
+                const idx = currentSearchResults.findIndex(b => b.id === biz.id);
+                if (idx >= 0) currentSearchIndex = idx;
+            }
             showBusinessInfo(biz);
         });
 
@@ -297,7 +302,7 @@ function renderMarkers(data) {
     });
 }
 
-function showBusinessInfo(biz, fromSearch = false) {
+function showBusinessInfo(biz) {
     const panel = document.getElementById('infoPanel');
     const nameEl = document.getElementById('bizName');
     const statusEl = document.getElementById('bizStatus');
@@ -340,10 +345,10 @@ function showBusinessInfo(biz, fromSearch = false) {
 
     navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${biz.lat},${biz.lng}`;
 
-    // Search Navigation Pagination
+    // Aktif arama sonucu varsa (birden fazla işletme) her zaman navigasyon göster
     const searchNav = document.getElementById('searchNav');
     if (searchNav) {
-        if (fromSearch && currentSearchResults && currentSearchResults.length > 1) {
+        if (currentSearchResults && currentSearchResults.length > 1) {
             searchNav.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0; background: rgba(0,0,0,0.2); padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                     <button onclick="showSearchResult(currentSearchIndex - 1)" style="padding: 6px 10px; font-weight:bold; cursor:pointer; border-radius:8px; background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; box-shadow: 0 2px 8px rgba(37,99,235,0.3); font-size: 0.85rem;">&laquo; Önceki</button>
@@ -415,7 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginScreen = document.getElementById('loginScreen');
     const appOverlay = document.getElementById('appOverlay');
     const loginError = document.getElementById('loginError');
-    const updateBtn = document.getElementById('updateBtn');
 
     // Versiyonu yazdır
     document.getElementById('versionTag').textContent = "V" + APP_VERSION;
@@ -561,9 +565,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loginScreen.classList.add('hidden');
         appOverlay.style.display = 'flex';
 
-        // Güncelleme butonu herkese görünür
-        updateBtn.style.display = 'flex';
-
         setTimeout(() => {
             initMap();
             loginScreen.style.display = 'none';
@@ -580,9 +581,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 1000);
     }
-
-    // Güncelleme İşlemi (forceUpdate login ekranında da tanımlı)
-    updateBtn.addEventListener('click', () => forceUpdate());
 
     // Oturum: token sessionStorage'da tutulur; sekme kapanınca otomatik çıkış olur.
 
