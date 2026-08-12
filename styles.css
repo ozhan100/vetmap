@@ -675,6 +675,34 @@ h1 {
     text-align: center;
 }
 
+#force-update-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 9px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+}
+
+#force-update-btn:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: var(--accent);
+    transform: none;
+}
+
+#force-update-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* Removed old controls styles */
 
 .menu-item {
