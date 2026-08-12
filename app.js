@@ -581,20 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    // Güncelleme İşlemi
-    updateBtn.addEventListener('click', () => {
-        if (confirm("Programın en son versiyonuna güncellenmesini istiyor musunuz?")) {
-            // Önbelleği temizlemek ve yeni versiyonu zorlamak için reload
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for (let registration of registrations) {
-                        registration.update();
-                    }
-                });
-            }
-            window.location.href = window.location.pathname + "?v=" + APP_VERSION + "_" + Date.now();
-        }
-    });
+    // Güncelleme İşlemi (forceUpdate login ekranında da tanımlı)
+    updateBtn.addEventListener('click', () => forceUpdate());
 
     // Oturum: token sessionStorage'da tutulur; sekme kapanınca otomatik çıkış olur.
 
