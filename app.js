@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.55";
+const APP_VERSION = "1.56";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -74,6 +74,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentOwnerData = null;
 let currentSearchResults = [];
 let currentSearchIndex = 0;
+let currentUser = null;
 
 // Initialize Map
 function initMap() {
@@ -303,6 +304,7 @@ function renderMarkers(data) {
 }
 
 function showBusinessInfo(biz) {
+    currentOwnerData = biz;
     const panel = document.getElementById('infoPanel');
     const nameEl = document.getElementById('bizName');
     const statusEl = document.getElementById('bizStatus');
@@ -368,6 +370,83 @@ function showBusinessInfo(biz) {
     map.setView([biz.lat, biz.lng], 16);
 }
 
+function getFreshUserLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Tarayıcı konum özelliğini desteklemiyor.'));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            maximumAge: 30000,
+            timeout: 15000
+        });
+    });
+}
+
+async function createCoordinateUpdateRequest() {
+    const biz = currentOwnerData;
+    const button = document.getElementById('requestCoordUpdateBtn');
+    const token = sessionStorage.getItem('vetmap_sessionToken');
+
+    if (!biz || !biz.id) {
+        alert('Önce bir işletme seçmelisiniz.');
+        return;
+    }
+    if (!token) {
+        alert('VetMap oturumunuz bulunamadı. Lütfen yeniden giriş yapın.');
+        return;
+    }
+
+    const originalText = button ? button.innerText : '';
+    if (button) {
+        button.disabled = true;
+        button.innerText = 'Konum alınıyor...';
+    }
+
+    try {
+        const position = await getFreshUserLocation();
+        const yeniEnlem = Number(position.coords.latitude);
+        const yeniBoylam = Number(position.coords.longitude);
+
+        if (!Number.isFinite(yeniEnlem) || !Number.isFinite(yeniBoylam)) {
+            throw new Error('Geçerli konum koordinatı alınamadı.');
+        }
+
+        if (button) button.innerText = 'Talep kaydediliyor...';
+
+        const { data, error } = await supabaseClient.rpc(
+            'vetmap_koordinat_talebi_olustur',
+            {
+                p_token: token,
+                p_isletme_no: String(biz.id).trim(),
+                p_isletme_adi: biz.name || null,
+                p_koy: biz.village || null,
+                p_mevcut_enlem: Number.isFinite(Number(biz.lat)) ? Number(biz.lat) : null,
+                p_mevcut_boylam: Number.isFinite(Number(biz.lng)) ? Number(biz.lng) : null,
+                p_yeni_enlem: yeniEnlem,
+                p_yeni_boylam: yeniBoylam,
+                p_aciklama: 'VetMap konum güncelleme talebi'
+            }
+        );
+
+        if (error) throw error;
+        if (!data || !data.basarili) {
+            throw new Error(data?.mesaj || 'Talep oluşturulamadı.');
+        }
+
+        alert(`Koordinat güncelleme talebi oluşturuldu.\nİşletme: ${biz.id}`);
+    } catch (error) {
+        console.error('Koordinat güncelleme talebi hatası:', error);
+        alert(error.message || 'Koordinat güncelleme talebi oluşturulamadı.');
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerText = originalText || '📍 Koordinat Güncelleme Talebi';
+        }
+    }
+}
+
 function locateUser() {
     if (!navigator.geolocation) {
         alert("Tarayıcınız konum özelliğini desteklemiyor.");
@@ -411,7 +490,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.56').catch(err => console.log(err));
     });
 }
 
@@ -446,6 +525,11 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsModal.classList.remove('active');
         });
     }
+
+    document.getElementById('requestCoordUpdateBtn')?.addEventListener(
+        'click',
+        createCoordinateUpdateRequest
+    );
 
     let selectedFiles = { suru: null, detay: null };
 

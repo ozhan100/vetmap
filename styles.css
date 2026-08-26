@@ -320,6 +320,18 @@ h1 {
 
 .btn-call { background: var(--primary); color: white; }
 .btn-nav { background: var(--accent); color: white; }
+.btn-coordinate {
+    grid-column: 1 / -1;
+    background: #f59e0b;
+    color: #111827;
+}
+.btn-coordinate:hover {
+    background: #d97706;
+}
+.btn-coordinate:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
 
 /* Custom Marker Styling */
 .user-location-marker {
