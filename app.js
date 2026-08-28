@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.61";
+const APP_VERSION = "1.62";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -314,7 +314,7 @@ function updateOwnerLabels() {
     if (map.getZoom() < 15) return;
 
     allMarkers.forEach(marker => {
-        const markerIsVisible = markerCluster.getVisibleParent(marker) === marker && !!marker.getElement();
+        const markerIsVisible = markerCluster.getVisibleParent(marker) === marker;
         const name = marker.bizData?.name;
         if (!markerIsVisible || !name) return;
 
