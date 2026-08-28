@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.63";
+const APP_VERSION = "1.64";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -24,6 +24,9 @@ function normalizeText(text) {
 let map;
 let markerCluster;
 let ownerLabelLayer;
+// marker (data) -> etiket marker'i. Etiketler yeniden kullanılır ki
+// her pan/zoom'da tüm DOM yıkılıp yeniden kurulmasın (telefonda kasma).
+let ownerLabelMarkers = new Map();
 let businesses = [];
 let animalTypes = [];
 let selectedAnimals = [];
@@ -277,6 +280,9 @@ window.showSearchResult = function (index) {
 function renderMarkers(data) {
     markerCluster.clearLayers();
     allMarkers = [];
+    // Veri yeniden kurulduğunda eski etiket marker'larını ve DOM'unu temizle.
+    ownerLabelLayer.clearLayers();
+    ownerLabelMarkers.clear();
 
     data.forEach(biz => {
         const fillColor = getAnimalTypeColor(biz);
@@ -310,29 +316,55 @@ function renderMarkers(data) {
 
 function updateOwnerLabels() {
     if (!map || !markerCluster || !ownerLabelLayer) return;
-    ownerLabelLayer.clearLayers();
-    if (map.getZoom() < 15) return;
+    const zoom = map.getZoom();
 
-    allMarkers.forEach(marker => {
+    // 1) Zoom 15'in altında hiçbir etiket görünmemeli: tümünü kaldır.
+    if (zoom < 15) {
+        ownerLabelMarkers.forEach(label => {
+            if (ownerLabelLayer.hasLayer(label)) ownerLabelLayer.removeLayer(label);
+        });
+        return;
+    }
+
+    // 2) Görünür olması gereken (data) marker'ları belirle.
+    const visibleDataMarkers = allMarkers.filter(marker => {
+        const name = marker.bizData?.name;
         // circleMarker SVG/_path kullandığı için _icon hiç set olmaz;
         // getVisibleParent(marker) === marker her zaman false döner.
         // Bireysel görünürlük: marker'ın DOM öğesi haritada mevcutsa.
-        const markerIsVisible = !!marker.getElement() && markerCluster.hasLayer(marker);
-        const name = marker.bizData?.name;
-        if (!markerIsVisible || !name) return;
+        return !!marker.getElement() && markerCluster.hasLayer(marker) && !!name;
+    });
 
-        const labelIcon = L.divIcon({
-            className: 'business-owner-label-icon',
-            html: `<span class="business-owner-label">${escapeHtml(name)}</span>`,
-            iconSize: null,
-            iconAnchor: [-12, 9]
-        });
-        L.marker(marker.getLatLng(), {
-            icon: labelIcon,
-            interactive: false,
-            keyboard: false,
-            zIndexOffset: -100
-        }).addTo(ownerLabelLayer);
+    // 3) Kaynak marker -> etiket eşlemesini yeniden oluştur, mevcutları koru.
+    const wanted = new Set();
+    visibleDataMarkers.forEach(marker => {
+        wanted.add(marker);
+        let label = ownerLabelMarkers.get(marker);
+        if (!label) {
+            const name = marker.bizData.name;
+            const labelIcon = L.divIcon({
+                className: 'business-owner-label-icon',
+                html: `<span class="business-owner-label">${escapeHtml(name)}</span>`,
+                iconSize: null,
+                iconAnchor: [-12, 9]
+            });
+            label = L.marker(marker.getLatLng(), {
+                icon: labelIcon,
+                interactive: false,
+                keyboard: false,
+                zIndexOffset: -100
+            });
+            ownerLabelMarkers.set(marker, label);
+        }
+        // Konum sabit olduğundan güncellemeye gerek yok; sadece ekle.
+        if (!ownerLabelLayer.hasLayer(label)) ownerLabelLayer.addLayer(label);
+    });
+
+    // 4) Artık görünmeyenlerin etiketlerini kaldır (silme, sadece sakla).
+    ownerLabelMarkers.forEach((label, dataMarker) => {
+        if (!wanted.has(dataMarker) && ownerLabelLayer.hasLayer(label)) {
+            ownerLabelLayer.removeLayer(label);
+        }
     });
 }
 
@@ -533,7 +565,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=1.63').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.64').catch(err => console.log(err));
     });
 }
 
