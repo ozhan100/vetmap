@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.56";
+const APP_VERSION = "1.57";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -490,7 +490,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=1.56').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.57').catch(err => console.log(err));
     });
 }
 
@@ -648,6 +648,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function showApp() {
         loginScreen.classList.add('hidden');
         appOverlay.style.display = 'flex';
+        if (typeof window.initAdminPanel === 'function') {
+            window.initAdminPanel({
+                appName: 'VetMap',
+                supabaseUrl: SUPABASE_URL,
+                tokenStorageKey: 'vetmap_sessionToken',
+                userName: currentUser
+            });
+        }
 
         setTimeout(() => {
             initMap();
