@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.58";
+const APP_VERSION = "1.59";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -115,9 +115,9 @@ function initMap() {
     markerCluster = L.markerClusterGroup({
         showCoverageOnHover: false,
         spiderfyOnMaxZoom: true,
-        disableClusteringAtZoom: 17
+        disableClusteringAtZoom: 15
     });
-
+    markerCluster.on('animationend', updateOwnerLabels);
     map.addLayer(markerCluster);
     map.on('zoomend', updateOwnerLabels);
 
@@ -319,7 +319,8 @@ function updateOwnerLabels() {
     const showLabels = map.getZoom() >= 15;
     allMarkers.forEach(marker => {
         marker.closeTooltip();
-        if (showLabels && markerCluster.getVisibleParent(marker) === marker) {
+        const markerIsVisible = markerCluster.getVisibleParent(marker) === marker && !!marker.getElement();
+        if (showLabels && markerIsVisible) {
             marker.openTooltip();
         }
     });
