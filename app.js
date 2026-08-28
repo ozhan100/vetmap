@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.60";
+const APP_VERSION = "1.61";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -23,6 +23,7 @@ function normalizeText(text) {
 }
 let map;
 let markerCluster;
+let ownerLabelLayer;
 let businesses = [];
 let animalTypes = [];
 let selectedAnimals = [];
@@ -120,6 +121,7 @@ function initMap() {
     });
     markerCluster.on('animationend', updateOwnerLabels);
     map.addLayer(markerCluster);
+    ownerLabelLayer = L.layerGroup().addTo(map);
     map.on('zoomend', updateOwnerLabels);
 
     // Load Data
@@ -289,15 +291,6 @@ function renderMarkers(data) {
             fillOpacity: 0.85
         });
 
-        const ownerLabel = document.createElement('span');
-        ownerLabel.textContent = biz.name || 'İşletme sahibi belirtilmemiş';
-        marker.bindTooltip(ownerLabel, {
-            direction: 'right',
-            offset: [9, 0],
-            opacity: 0.95,
-            className: 'business-owner-tooltip'
-        });
-
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             // Aktif arama varsa tıklanan işletmenin arama listesindeki sırasını bul
@@ -316,15 +309,38 @@ function renderMarkers(data) {
 }
 
 function updateOwnerLabels() {
-    if (!map || !markerCluster) return;
-    const showLabels = map.getZoom() >= 15;
+    if (!map || !markerCluster || !ownerLabelLayer) return;
+    ownerLabelLayer.clearLayers();
+    if (map.getZoom() < 15) return;
+
     allMarkers.forEach(marker => {
-        marker.closeTooltip();
         const markerIsVisible = markerCluster.getVisibleParent(marker) === marker && !!marker.getElement();
-        if (showLabels && markerIsVisible) {
-            marker.openTooltip();
-        }
+        const name = marker.bizData?.name;
+        if (!markerIsVisible || !name) return;
+
+        const labelIcon = L.divIcon({
+            className: 'business-owner-label-icon',
+            html: `<span class="business-owner-label">${escapeHtml(name)}</span>`,
+            iconSize: null,
+            iconAnchor: [-12, 9]
+        });
+        L.marker(marker.getLatLng(), {
+            icon: labelIcon,
+            interactive: false,
+            keyboard: false,
+            zIndexOffset: -100
+        }).addTo(ownerLabelLayer);
     });
+}
+
+function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+    }[character]));
 }
 
 function showBusinessInfo(biz) {
