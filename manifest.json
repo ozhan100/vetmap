@@ -1,7 +1,7 @@
 {
   "name": "VetMap Pro - Hayvan Sağlığı İşletme Takibi",
   "short_name": "VetMap",
-  "version": "1.64",
+  "version": "1.65",
   "description": "Hayvan sağlığı, sürü ve işletme kayıtlarını takip edin.",
   "start_url": ".",
   "scope": ".",

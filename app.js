@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.64";
+const APP_VERSION = "1.65";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -120,7 +120,9 @@ function initMap() {
         showCoverageOnHover: false,
         spiderfyOnMaxZoom: true,
         maxClusterRadius: 45,
-        disableClusteringAtZoom: 14
+        // 16'ya kadar kümele: zoom 15 gibi yoğun kesimde binlerce bireysel
+        // marker(ve etiket) render edilmesin, telefon kasmaya geçmesin.
+        disableClusteringAtZoom: 16
     });
     markerCluster.on('animationend', updateOwnerLabels);
     map.addLayer(markerCluster);
@@ -318,8 +320,9 @@ function updateOwnerLabels() {
     if (!map || !markerCluster || !ownerLabelLayer) return;
     const zoom = map.getZoom();
 
-    // 1) Zoom 15'in altında hiçbir etiket görünmemeli: tümünü kaldır.
-    if (zoom < 15) {
+    // 1) Zoom 16'nın altında markerlar kümeli olduğundan etiket gösterme:
+    //    tümünü kaldır.
+    if (zoom < 16) {
         ownerLabelMarkers.forEach(label => {
             if (ownerLabelLayer.hasLayer(label)) ownerLabelLayer.removeLayer(label);
         });
@@ -565,7 +568,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=1.64').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.65').catch(err => console.log(err));
     });
 }
 
