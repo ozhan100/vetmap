@@ -333,6 +333,24 @@ h1 {
     cursor: wait;
 }
 
+/* İşletme sahibi adı, yalnızca yakınlaştırılmış harita görünümünde açılır. */
+.business-owner-tooltip {
+    background: rgba(15, 23, 42, 0.94) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    border-radius: 6px !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3) !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    max-width: 180px !important;
+    padding: 4px 7px !important;
+    white-space: nowrap !important;
+}
+.business-owner-tooltip::before {
+    border-right-color: rgba(15, 23, 42, 0.94) !important;
+}
+
 /* Custom Marker Styling */
 .user-location-marker {
     background: none !important;

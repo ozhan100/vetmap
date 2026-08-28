@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.57";
+const APP_VERSION = "1.58";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -119,6 +119,7 @@ function initMap() {
     });
 
     map.addLayer(markerCluster);
+    map.on('zoomend', updateOwnerLabels);
 
     // Load Data
     loadData();
@@ -287,6 +288,15 @@ function renderMarkers(data) {
             fillOpacity: 0.85
         });
 
+        const ownerLabel = document.createElement('span');
+        ownerLabel.textContent = biz.name || 'İşletme sahibi belirtilmemiş';
+        marker.bindTooltip(ownerLabel, {
+            direction: 'right',
+            offset: [9, 0],
+            opacity: 0.95,
+            className: 'business-owner-tooltip'
+        });
+
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             // Aktif arama varsa tıklanan işletmenin arama listesindeki sırasını bul
@@ -300,6 +310,18 @@ function renderMarkers(data) {
         marker.bizData = biz;
         markerCluster.addLayer(marker);
         allMarkers.push(marker);
+    });
+    updateOwnerLabels();
+}
+
+function updateOwnerLabels() {
+    if (!map || !markerCluster) return;
+    const showLabels = map.getZoom() >= 15;
+    allMarkers.forEach(marker => {
+        marker.closeTooltip();
+        if (showLabels && markerCluster.getVisibleParent(marker) === marker) {
+            marker.openTooltip();
+        }
     });
 }
 
@@ -490,7 +512,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=1.57').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.58').catch(err => console.log(err));
     });
 }
 
