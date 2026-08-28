@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vetmap-1.62';
+const CACHE_NAME = 'vetmap-1.63';
 const CORE_ASSETS = ['./', './index.html', './styles.css', './admin-panel.js', './app.js'];
 
 self.addEventListener('install', (event) => {

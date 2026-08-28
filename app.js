@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.62";
+const APP_VERSION = "1.63";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -314,7 +314,10 @@ function updateOwnerLabels() {
     if (map.getZoom() < 15) return;
 
     allMarkers.forEach(marker => {
-        const markerIsVisible = markerCluster.getVisibleParent(marker) === marker;
+        // circleMarker SVG/_path kullandığı için _icon hiç set olmaz;
+        // getVisibleParent(marker) === marker her zaman false döner.
+        // Bireysel görünürlük: marker'ın DOM öğesi haritada mevcutsa.
+        const markerIsVisible = !!marker.getElement() && markerCluster.hasLayer(marker);
         const name = marker.bizData?.name;
         if (!markerIsVisible || !name) return;
 
@@ -530,7 +533,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=1.58').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.63').catch(err => console.log(err));
     });
 }
 
