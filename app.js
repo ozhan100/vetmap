@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.65";
+const APP_VERSION = "1.66";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -583,7 +583,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=1.65').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.66').catch(err => console.log(err));
     });
 }
 
