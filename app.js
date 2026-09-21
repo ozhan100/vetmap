@@ -31,6 +31,7 @@ let businesses = [];
 let animalTypes = [];
 let selectedAnimals = [];
 let userMarker;
+let locationWatchId = null; // watchPosition kimliği
 let allMarkers = [];
 let suruData = {};
 
@@ -275,7 +276,7 @@ window.showSearchResult = function (index) {
     currentSearchIndex = index;
     const biz = currentSearchResults[index];
 
-    map.setView([biz.lat, biz.lng], 17);
+    map.setView([biz.lat, biz.lng], 19);
     showBusinessInfo(biz);
 };
 
@@ -445,7 +446,7 @@ function showBusinessInfo(biz) {
     panel.classList.add('active');
 
     // Center map on marker
-    map.setView([biz.lat, biz.lng], 16);
+    map.setView([biz.lat, biz.lng], 19);
 }
 
 function getFreshUserLocation() {
@@ -531,7 +532,18 @@ function locateUser() {
         return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    // Önceki izleme varsa durdur, yeniden başlat (butona tekrar basıldığında
+    // anlık konuma gitmesini sağlar).
+    if (locationWatchId !== null) {
+        navigator.geolocation.clearWatch(locationWatchId);
+        locationWatchId = null;
+    }
+
+    // İlk kez çağrıldığında (veya buton tıklandığında) harita konuma gider.
+    // Sonraki otomatik güncellemeler sadece marker'ı hareket ettirir.
+    let firstUpdate = true;
+
+    locationWatchId = navigator.geolocation.watchPosition(
         (position) => {
             const { latitude, longitude } = position.coords;
             const latlng = [latitude, longitude];
@@ -554,13 +566,16 @@ function locateUser() {
                 }).addTo(map);
             }
 
-            map.setView(latlng, 15);
+            // Sadece ilk güncellemede (veya buton tetiklediğinde) haritayı oraya çek.
+            if (firstUpdate) {
+                map.setView(latlng, 19);
+                firstUpdate = false;
+            }
         },
         (error) => {
             console.error("Geolocation error:", error);
-            // Default to center if blocked
         },
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
     );
 }
 
