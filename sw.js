@@ -1,5 +1,5 @@
-const CACHE_NAME = 'vetmap-1.66';
-const CORE_ASSETS = ['./', './index.html', './styles.css', './admin-panel.js', './app.js'];
+const CACHE_NAME = 'vetmap-1.67';
+const CORE_ASSETS = ['./', './index.html', './styles.css', './admin-panel.js', './offline-queue.js', './app.js'];
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();

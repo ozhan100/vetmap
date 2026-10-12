@@ -1027,3 +1027,111 @@ h1 {
     .admin-add-grid { grid-template-columns: 1fr; }
     .admin-primary-btn { margin-left: 0; }
 }
+
+/* Çevrimdışı kuyruk + manuel işletme (v1.67) */
+.kuyruk-rozet {
+    display: inline-block;
+    min-width: 18px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.4;
+    vertical-align: middle;
+}
+
+.cevrimdisi-serit {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9998;
+    padding: 6px 10px;
+    background: rgba(180, 83, 9, 0.95);
+    color: #fff;
+    font-size: 0.75rem;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+#vetmap-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 70px;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 10001;
+    max-width: 90%;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: rgba(21, 128, 61, 0.95);
+    color: #fff;
+    font-size: 0.82rem;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+}
+
+#vetmap-toast.goster {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.manuel-input {
+    width: 100%;
+    padding: 9px 10px;
+    margin-top: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.manuel-onizleme {
+    min-height: 18px;
+    margin-top: 5px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+}
+
+.manuel-onizleme.ok {
+    color: #4ade80;
+    font-weight: 600;
+}
+
+.manuel-onizleme.hata {
+    color: #f87171;
+}
+
+.kuyruk-satir {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    font-size: 0.8rem;
+}
+
+.kuyruk-satir small {
+    color: var(--text-dim);
+}
+
+.kuyruk-sil-btn {
+    padding: 4px 10px;
+    border: 1px solid rgba(220, 38, 38, 0.5);
+    border-radius: 6px;
+    background: rgba(220, 38, 38, 0.15);
+    color: #fca5a5;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}

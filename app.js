@@ -1,5 +1,5 @@
 // her güncellemeden sonra APP_VERSION 0.01 arttırılsın
-const APP_VERSION = "1.66";
+const APP_VERSION = "1.67";
 
 /**
  * AGE programındaki KelimeKucult() fonksiyonunun JS karşılığı.
@@ -20,6 +20,29 @@ function normalizeText(text) {
         .toLowerCase()
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+// Araç Görev Emri Programı'ndaki KelimeBuyut birebir karşılığı.
+function kelimeBuyutJS(kelime) {
+    if (kelime === null || kelime === undefined || kelime === '') return '';
+    return String(kelime).trim().replace(/i/g, 'İ').replace(/ı/g, 'I').toUpperCase();
+}
+
+// Araç Görev Emri Programı'ndaki TemizleVeBuyut birebir karşılığı.
+function temizleVeBuyutJS(metin) {
+    const s = String(metin ?? '');
+    if (s.length > 0 && s[0] >= '0' && s[0] <= '9') return 'TR16' + s;
+    return kelimeBuyutJS(s.replace(/-/g, '').replace(/ /g, '').replace(/,/g, ''));
+}
+
+// Araç Görev Emri Programı'ndaki TurkvetIsletmeNoAyarla birebir karşılığı:
+// el ile yazılan numarayı 14 haneli TR16... biçimine çevirir.
+// Geçersiz girişte null döner (Python tarafı ValueError fırlatır).
+function turkvetIsletmeNoAyarlaJS(isletmeNo) {
+    const temiz = temizleVeBuyutJS(isletmeNo).split('TR16').join('').trim();
+    if (!/^\d+$/.test(temiz)) return null;
+    const rakamsiz = temiz.replace(/^0+/, '') || '0';
+    return 'TR16' + rakamsiz.padStart(10, '0');
 }
 let map;
 let markerCluster;
@@ -80,6 +103,9 @@ let currentOwnerData = null;
 let currentSearchResults = [];
 let currentSearchIndex = 0;
 let currentUser = null;
+// true ise uygulama doğrulanmamış oturumla çevrimdışı modda çalışıyordur;
+// talepler kuyruğa yazılır, Supabase'e dokunulmaz.
+window.VETMAP_CEVRIMDISI = false;
 
 // Initialize Map
 function initMap() {
@@ -494,27 +520,57 @@ async function createCoordinateUpdateRequest() {
 
         if (button) button.innerText = 'Talep kaydediliyor...';
 
-        const { data, error } = await supabaseClient.rpc(
-            'vetmap_koordinat_talebi_olustur',
-            {
-                p_token: token,
-                p_isletme_no: String(biz.id).trim(),
-                p_isletme_adi: biz.name || null,
-                p_koy: biz.village || null,
-                p_mevcut_enlem: Number.isFinite(Number(biz.lat)) ? Number(biz.lat) : null,
-                p_mevcut_boylam: Number.isFinite(Number(biz.lng)) ? Number(biz.lng) : null,
-                p_yeni_enlem: yeniEnlem,
-                p_yeni_boylam: yeniBoylam,
-                p_aciklama: 'VetMap konum güncelleme talebi'
-            }
-        );
+        const params = {
+            p_token: token,
+            p_isletme_no: String(biz.id).trim(),
+            p_isletme_adi: biz.name || null,
+            p_koy: biz.village || null,
+            p_mevcut_enlem: Number.isFinite(Number(biz.lat)) ? Number(biz.lat) : null,
+            p_mevcut_boylam: Number.isFinite(Number(biz.lng)) ? Number(biz.lng) : null,
+            p_yeni_enlem: yeniEnlem,
+            p_yeni_boylam: yeniBoylam,
+            p_aciklama: 'VetMap konum güncelleme talebi' + (biz.kaynak === 'manuel' ? ' (MANUEL KAYIT)' : '')
+        };
 
-        if (error) throw error;
-        if (!data || !data.basarili) {
-            throw new Error(data?.mesaj || 'Talep oluşturulamadı.');
+        const kuyrukKaydi = () => ({
+            params: Object.assign({}, params, { p_token: undefined }),
+            _kullanici: currentUser || sessionStorage.getItem('vetmap_currentUser') || ''
+        });
+
+        // İnternet yoksa önce telefona kaydet; gelince otomatik gönderilir.
+        if (navigator.onLine === false && typeof VetmapKuyruk !== 'undefined') {
+            const n = VetmapKuyruk.ekle(kuyrukKaydi());
+            kuyrukArayuzGuncelle();
+            alert(`İnternet bağlantısı yok. Talep telefona kaydedildi (Bekleyen: ${n}).\nİnternet gelince otomatik gönderilecek.\nİşletme: ${biz.id}`);
+            return;
         }
 
-        alert(`Koordinat güncelleme talebi oluşturuldu.\nİşletme: ${biz.id}`);
+        try {
+            const { data, error } = await supabaseClient.rpc(
+                'vetmap_koordinat_talebi_olustur',
+                params
+            );
+
+            if (error) throw error;
+            if (!data || !data.basarili) {
+                throw new Error(data?.mesaj || 'Talep oluşturulamadı.');
+            }
+
+            alert(`Koordinat güncelleme talebi oluşturuldu.\nİşletme: ${biz.id}`);
+        } catch (rpcError) {
+            // Gönderim sırasında bağlantı koptuysa kuyruğa yaz, diğer
+            // sunucu hatalarını (doğrulama vb.) aynen göster.
+            const agKoptu = (rpcError instanceof TypeError) ||
+                /failed to fetch|network|load failed/i.test(String((rpcError && rpcError.message) || '')) ||
+                navigator.onLine === false;
+            if (agKoptu && typeof VetmapKuyruk !== 'undefined') {
+                const n = VetmapKuyruk.ekle(kuyrukKaydi());
+                kuyrukArayuzGuncelle();
+                alert(`Gönderim sırasında bağlantı koptu. Talep telefona kaydedildi (Bekleyen: ${n}).\nİşletme: ${biz.id}`);
+                return;
+            }
+            throw rpcError;
+        }
     } catch (error) {
         console.error('Koordinat güncelleme talebi hatası:', error);
         alert(error.message || 'Koordinat güncelleme talebi oluşturulamadı.');
@@ -524,6 +580,199 @@ async function createCoordinateUpdateRequest() {
             button.innerText = originalText || '📍 Koordinat Güncelleme Talebi';
         }
     }
+}
+
+// --- Çevrimdışı kuyruk arayüzü ---
+function kuyrukArayuzGuncelle() {
+    if (typeof VetmapKuyruk === 'undefined') return;
+    VetmapKuyruk.rozetGuncelle();
+    const kutu = document.getElementById('kuyrukListe');
+    if (!kutu) return;
+    const liste = VetmapKuyruk.listele();
+    if (liste.length === 0) {
+        kutu.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);">Bekleyen talep yok.</div>';
+        return;
+    }
+    kutu.innerHTML = liste.map(k => {
+        const no = (k.params && k.params.p_isletme_no) || '?';
+        const ad = (k.params && k.params.p_isletme_adi) || '';
+        const zaman = k._zaman ? new Date(k._zaman).toLocaleString('tr-TR') : '';
+        const hata = (k._deneme || 0) >= 3 ? ' <span style="color:#f87171;">(sunucu reddetti)</span>' : '';
+        return `<div class="kuyruk-satir">
+            <span><b>${escapeHtml(no)}</b> ${escapeHtml(ad)}<br><small>${escapeHtml(zaman)}${hata}</small></span>
+            <button type="button" data-kuyruk-sil="${k._id}" class="kuyruk-sil-btn">Sil</button>
+        </div>`;
+    }).join('');
+    kutu.querySelectorAll('[data-kuyruk-sil]').forEach(b => {
+        b.addEventListener('click', () => {
+            VetmapKuyruk.sil(b.getAttribute('data-kuyruk-sil'));
+            kuyrukArayuzGuncelle();
+        });
+    });
+}
+
+async function kuyruguOtomatikGonder() {
+    if (typeof VetmapKuyruk === 'undefined' || VetmapKuyruk.sayi() === 0) return;
+    if (navigator.onLine === false || window.VETMAP_CEVRIMDISI === true) return;
+    const token = sessionStorage.getItem('vetmap_sessionToken');
+    if (!token) return;
+    // Oturum hâlâ geçerliyse gönder; değilse giriş beklenir, kuyruk korunur.
+    try {
+        const { data, error } = await supabaseClient.rpc('oturum_dogrula', { p_token: token, p_uygulama_adi: 'VetMap' });
+        if (error || !data || !data.gecerli) return;
+    } catch (e) {
+        return;
+    }
+    const sonuc = await VetmapKuyruk.gonderHepsini(supabaseClient, token);
+    kuyrukArayuzGuncelle();
+    if (sonuc && sonuc.gonderilen > 0 && window.VetmapToast) {
+        VetmapToast(`${sonuc.gonderilen} bekleyen talep gönderildi.`);
+    }
+}
+
+async function kuyruguSimdiGonder() {
+    if (typeof VetmapKuyruk === 'undefined') return;
+    if (VetmapKuyruk.sayi() === 0) {
+        alert('Gönderilecek bekleyen talep yok.');
+        return;
+    }
+    if (navigator.onLine === false) {
+        alert('İnternet bağlantısı yok. Bağlantı gelince otomatik gönderilecek.');
+        return;
+    }
+    const token = sessionStorage.getItem('vetmap_sessionToken');
+    if (!token) {
+        alert('Oturum bulunamadı. Lütfen giriş yapın.');
+        return;
+    }
+    const sonuc = await VetmapKuyruk.gonderHepsini(supabaseClient, token);
+    kuyrukArayuzGuncelle();
+    if (sonuc.authGerekli) {
+        alert('Oturum süresi dolmuş. Lütfen yeniden giriş yapın, ardından tekrar deneyin.');
+        return;
+    }
+    alert(`${sonuc.gonderilen} talep gönderildi. Bekleyen: ${sonuc.bekleyen}.`);
+}
+
+function cevrimdisiSeritGuncelle() {
+    const serit = document.getElementById('cevrimdisiSerit');
+    if (!serit) return;
+    if (navigator.onLine === false) {
+        serit.textContent = window.VETMAP_CEVRIMDISI === true
+            ? '📴 ÇEVRİMDIŞI MOD — talepler telefona kaydediliyor.'
+            : '📡 İnternet yok — talepler telefona kaydediliyor.';
+        serit.style.display = 'block';
+    } else if (window.VETMAP_CEVRIMDISI === true) {
+        serit.textContent = '📴 ÇEVRİMDIŞI MOD — oturum doğrulanmadı, talepler telefona kaydediliyor.';
+        serit.style.display = 'block';
+    } else {
+        serit.style.display = 'none';
+    }
+}
+
+// --- Manuel işletme kaydı ---
+function manuelModalAc() {
+    const m = document.getElementById('manuelModal');
+    if (m) m.classList.add('active');
+    manuelNoOnizleme();
+}
+
+function manuelModalKapat() {
+    const m = document.getElementById('manuelModal');
+    if (m) m.classList.remove('active');
+}
+
+function manuelNoOnizleme() {
+    const giris = document.getElementById('manuelIsletmeNo');
+    const kutu = document.getElementById('manuelNoOnizleme');
+    if (!giris || !kutu) return;
+    const ham = giris.value.trim();
+    if (!ham) {
+        kutu.textContent = '';
+        kutu.className = 'manuel-onizleme';
+        return;
+    }
+    const duzenli = turkvetIsletmeNoAyarlaJS(ham);
+    if (duzenli && duzenli.length === 14) {
+        kutu.textContent = `Kaydedilecek: ${duzenli} ✓`;
+        kutu.className = 'manuel-onizleme ok';
+    } else {
+        kutu.textContent = 'Geçersiz numara — 14 haneli TR16... biçimine dönüşmüyor.';
+        kutu.className = 'manuel-onizleme hata';
+    }
+}
+
+async function manuelIsletmeKaydet() {
+    const noGiris = document.getElementById('manuelIsletmeNo');
+    const adGiris = document.getElementById('manuelSahipAdi');
+    const koyGiris = document.getElementById('manuelKoy');
+    const kaydetBtn = document.getElementById('manuelKaydetBtn');
+    const hamNo = (noGiris && noGiris.value || '').trim();
+    const ad = (adGiris && adGiris.value || '').trim();
+    const koy = (koyGiris && koyGiris.value || '').trim();
+
+    if (!hamNo) {
+        alert('İşletme numarası giriniz.');
+        return;
+    }
+    const no = turkvetIsletmeNoAyarlaJS(hamNo);
+    if (!no || no.length !== 14) {
+        alert('Geçersiz işletme numarası.\nÖrn: 12345 ya da TR160001234567');
+        return;
+    }
+    if (!ad) {
+        alert('Sahip adı giriniz.');
+        return;
+    }
+
+    const mevcut = businesses.find(b => String(b.id).trim() === no);
+    if (mevcut) {
+        alert('Bu numara listede zaten kayıtlı. Listedeki kaydı kullanın.');
+        manuelModalKapat();
+        map.setView([mevcut.lat, mevcut.lng], 19);
+        showBusinessInfo(mevcut);
+        return;
+    }
+
+    if (kaydetBtn) {
+        kaydetBtn.disabled = true;
+        kaydetBtn.textContent = 'Konum alınıyor...';
+    }
+    try {
+        const position = await getFreshUserLocation();
+        const lat = Number(position.coords.latitude);
+        const lng = Number(position.coords.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Geçerli konum alınamadı.');
+        const biz = {
+            id: no, tc: '', name: ad, phone: '', village: koy,
+            status: 'Aktif', lat, lng, animals: [], kaynak: 'manuel'
+        };
+        businesses.push(biz);
+        if (typeof VetmapManuel !== 'undefined') VetmapManuel.kaydet(biz);
+        manuelModalKapat();
+        applyFilters();
+        map.setView([lat, lng], 19);
+        showBusinessInfo(biz);
+        alert(`İşletme kaydedildi: ${no}\nKoordinat talebi için bilgi kartındaki butonu kullanın.`);
+    } catch (err) {
+        console.error('Manuel işletme kaydı hatası:', err);
+        alert(err.message || 'Kayıt oluşturulamadı.');
+    } finally {
+        if (kaydetBtn) {
+            kaydetBtn.disabled = false;
+            kaydetBtn.textContent = '📍 Konumu Al ve Kaydet';
+        }
+    }
+}
+
+// Excel yüklendikten sonra (ve dosyasız açılışta) manuel kayıtları listeye ekler.
+function manuelIsletmeleriBirlestir() {
+    if (typeof VetmapManuel === 'undefined') return;
+    try {
+        VetmapManuel.listele().forEach(m => {
+            if (!businesses.some(b => String(b.id) === String(m.id))) businesses.push(m);
+        });
+    } catch (e) { /* sessiz geç */ }
 }
 
 function locateUser() {
@@ -583,7 +832,7 @@ function locateUser() {
 // Handle PWA installation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=1.66').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js?v=1.67').catch(err => console.log(err));
     });
 }
 
@@ -657,8 +906,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.getElementById('manuelIsletmeBtn')?.addEventListener('click', manuelModalAc);
+    document.getElementById('manuelVazgecBtn')?.addEventListener('click', manuelModalKapat);
+    document.getElementById('manuelKapatBtn')?.addEventListener('click', manuelModalKapat);
+    document.getElementById('manuelKaydetBtn')?.addEventListener('click', manuelIsletmeKaydet);
+    document.getElementById('manuelIsletmeNo')?.addEventListener('input', manuelNoOnizleme);
+    document.getElementById('cevrimdisiDevamBtn')?.addEventListener('click', cevrimdisiDevamEt);
+    document.getElementById('kuyrukBtn')?.addEventListener('click', kuyruguSimdiGonder);
+    document.getElementById('kuyrukGonderBtn')?.addEventListener('click', kuyruguSimdiGonder);
+
+    window.addEventListener('online', async () => {
+        // Çevrimdışı modda internet geldiyse oturumu doğrulamayı dene
+        if (window.VETMAP_CEVRIMDISI === true) {
+            try {
+                const t = sessionStorage.getItem('vetmap_sessionToken');
+                if (t) {
+                    const { data, error } = await supabaseClient.rpc('oturum_dogrula', { p_token: t, p_uygulama_adi: 'VetMap' });
+                    if (!error && data && data.gecerli) window.VETMAP_CEVRIMDISI = false;
+                }
+            } catch (e) { /* sessiz geç */ }
+        }
+        cevrimdisiSeritGuncelle();
+        kuyruguOtomatikGonder();
+    });
+    window.addEventListener('offline', () => {
+        cevrimdisiSeritGuncelle();
+    });
+
     // Oturum kontrolü — token yalnızca SUNUCUDA doğrulanırsa geçerlidir.
     // (İstemci bayrağına güvenilmez — sahte "isLoggedIn=true" ile giriş atlanamaz.)
+    // Ağ hatasında token silinmez; kullanıcı "Çevrimdışı Devam Et" ile
+    // haritayı kuyruk modunda kullanabilir.
     const token = sessionStorage.getItem('vetmap_sessionToken');
     if (token) {
         (async () => {
@@ -669,14 +947,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (!error && data && data.gecerli) {
                     currentUser = data.kullanici_adi;
+                    window.VETMAP_CEVRIMDISI = false;
                     showApp();
+                    return;
+                }
+                if (!error && data && data.gecerli === false) {
+                    // Sunucu oturumu reddetti: temizle, normal girişte kal.
+                    sessionStorage.removeItem('vetmap_sessionToken');
+                    sessionStorage.removeItem('vetmap_currentUser');
+                    if (typeof VetmapSonGiris !== 'undefined') VetmapSonGiris.temizle();
                     return;
                 }
             } catch (err) {
                 console.warn('Oturum doğrulaması başarısız:', err);
             }
-            sessionStorage.removeItem('vetmap_sessionToken');
-            sessionStorage.removeItem('vetmap_currentUser');
+            cevrimdisiGirisSecenegiGoster();
         })();
     }
 
@@ -715,6 +1000,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentUser = data.kullanici_adi;
                     sessionStorage.setItem('vetmap_sessionToken', data.token);
                     sessionStorage.setItem('vetmap_currentUser', currentUser);
+                    // Çevrimdışı devam için son girişi hatırla
+                    if (typeof VetmapSonGiris !== 'undefined') VetmapSonGiris.kaydet(currentUser, data.token);
+                    window.VETMAP_CEVRIMDISI = false;
 
                     showApp();
                 } else {
@@ -737,6 +1025,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+    // Kayıtlı oturum varsa ve ağ yoksa giriş ekranında çevrimdışı devam seçeneği sunar.
+    function cevrimdisiGirisSecenegiGoster() {
+        const hatirlanan = (typeof VetmapSonGiris !== 'undefined') ? VetmapSonGiris.oku() : null;
+        const btn = document.getElementById('cevrimdisiDevamBtn');
+        if (btn && hatirlanan && hatirlanan.token) {
+            const bilgi = document.getElementById('cevrimdisiBilgi');
+            if (bilgi) bilgi.textContent = `${hatirlanan.kullanici_adi} olarak çevrimdışı devam edebilirsiniz. Talepler telefona kaydedilir.`;
+            btn.style.display = 'block';
+        }
+    }
+
+    function cevrimdisiDevamEt() {
+        const hatirlanan = (typeof VetmapSonGiris !== 'undefined') ? VetmapSonGiris.oku() : null;
+        if (!hatirlanan || !hatirlanan.token) {
+            alert('Kayıtlı oturum bulunamadı. İnternet varken giriş yapmalısınız.');
+            return;
+        }
+        currentUser = hatirlanan.kullanici_adi;
+        sessionStorage.setItem('vetmap_sessionToken', hatirlanan.token);
+        sessionStorage.setItem('vetmap_currentUser', currentUser);
+        window.VETMAP_CEVRIMDISI = true;
+        showApp();
+    }
 
     function showApp() {
         loginScreen.classList.add('hidden');
@@ -764,7 +1076,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.warn('Otomatik veri yükleme başarısız:', err);
             }
+            // Manuel kayıtları listeyle birleştir (dosyasız açılışta da görünsün)
+            manuelIsletmeleriBirlestir();
+            if (businesses.length > 0) renderMarkers(businesses);
         }, 1000);
+
+        kuyrukArayuzGuncelle();
+        cevrimdisiSeritGuncelle();
+        kuyruguOtomatikGonder();
     }
 
     // Oturum: token sessionStorage'da tutulur; sekme kapanınca otomatik çıkış olur.
@@ -862,6 +1181,9 @@ async function processSelectedFiles(files) {
             animals: suruData[business_id] || []
         });
     });
+
+    // Elle eklenen işletmeleri listeyle birleştir (aynı no varsa liste kaydı korunur)
+    manuelIsletmeleriBirlestir();
 
     animalTypes = [...new Set(businesses.flatMap(b => b.animals.map(a => a.type)))].sort();
     setupAnimalFilter();

@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     
-    <link rel="stylesheet" href="styles.css?v=1.65">
+    <link rel="stylesheet" href="styles.css?v=1.67">
     
     <!-- SheetJS for XLSX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -28,6 +28,7 @@
 </head>
 <body>
     <div id="map"></div>
+    <div id="cevrimdisiSerit" class="cevrimdisi-serit" style="display:none;"></div>
 
     <!-- Login Screen -->
     <div id="loginScreen" class="login-screen">
@@ -35,7 +36,7 @@
             <div class="login-logo">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             </div>
-            <h2>VetMap Portal <span class="login-version">V1.65</span></h2>
+            <h2>VetMap Portal <span class="login-version">V1.67</span></h2>
             <p>Hayvan Sağlığı ve İşletme Takip Sistemine Hoş Geldiniz.</p>
             
             <form id="loginForm">
@@ -55,6 +56,8 @@
                     belleğinde tutulur; sayfa kapatıldığında veriler silinir.
                 </div>
                 <button type="button" id="force-update-btn" onclick="forceUpdate()" title="Uygulamayı güncelle ve cache'i temizle">🔄 Güncelle</button>
+                <div id="cevrimdisiBilgi" style="font-size:0.75rem;color:var(--text-dim);margin-top:8px;text-align:center;"></div>
+                <button type="button" id="cevrimdisiDevamBtn" class="login-btn" style="display:none;margin-top:10px;">📴 Çevrimdışı Devam Et</button>
             </form>
         </div>
     </div>
@@ -92,10 +95,12 @@
                 </div>
 
                 <div class="version-tag-container">
-                    <span id="versionTag">V1.65</span>
+                    <span id="versionTag">V1.67</span>
                 </div>
 
                 <div class="action-group">
+                    <button id="manuelIsletmeBtn" class="toolbar-btn" title="Manuel İşletme Ekle">➕</button>
+                    <button id="kuyrukBtn" class="toolbar-btn" title="Bekleyen talepleri gönder" style="display:none;">📤<span id="kuyrukRozet" class="kuyruk-rozet">0</span></button>
                     <button id="openSettingsBtn" class="toolbar-btn" title="Veri Yükle">⚙️</button>
                     <button id="locateBtn" class="toolbar-btn" title="Konumumu Bul">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
@@ -171,7 +176,45 @@
             </div>
 
             <button id="processFilesBtn" class="login-btn" style="width: 100%; margin-bottom: 10px; background: #10b981; border: none; display: block;">🗺️ Haritaya Yükle</button>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 16px 0 12px; padding-top: 12px;">
+                <h4 style="margin: 0 0 4px;">📤 Bekleyen Talepler <span id="kuyrukSayi" style="font-weight:normal;">(bekleyen yok)</span></h4>
+                <p style="font-size: 0.75rem; color: var(--text-dim); margin: 0 0 8px;">İnternetsizken kaydedilen talepler burada birikir, bağlantı gelince otomatik gönderilir.</p>
+                <div id="kuyrukListe"></div>
+                <button id="kuyrukGonderBtn" type="button" class="login-btn" style="width: 100%; margin-top: 8px; background: #2563eb; border: none; display: block;">Şimdi Gönder</button>
+            </div>
+
             <button id="cancelSettingsBtn" class="logout-btn" style="width: 100%; display: block; text-align: center;">Kapat</button>
+        </div>
+    </div>
+
+    <!-- Manuel İşletme Kayıt Penceresi -->
+    <div id="manuelModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="margin: 0;">➕ Manuel İşletme Ekle</h3>
+                <button id="manuelKapatBtn" type="button" style="background: none; border: none; color: var(--text-dim); font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 4px 8px;" title="Kapat">✕</button>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 16px;">Listede olmayan işletmeyi sahada kaydedin. Bulunduğunuz konum, işletmenin koordinatı olarak alınır. Numara otomatik olarak 14 haneli TR16... biçimine çevrilir.</p>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label>İşletme Numarası</label>
+                <input type="text" id="manuelIsletmeNo" class="manuel-input" placeholder="Örn: 12345 ya da TR160001234567" autocomplete="off">
+                <div id="manuelNoOnizleme" class="manuel-onizleme"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label>Sahip Adı</label>
+                <input type="text" id="manuelSahipAdi" class="manuel-input" placeholder="Ad Soyad" autocomplete="off">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Köy / Mahalle (opsiyonel)</label>
+                <input type="text" id="manuelKoy" class="manuel-input" placeholder="Köy adı" autocomplete="off">
+            </div>
+
+            <button id="manuelKaydetBtn" type="button" class="login-btn" style="width: 100%; margin-bottom: 10px; background: #10b981; border: none; display: block;">📍 Konumu Al ve Kaydet</button>
+            <button id="manuelVazgecBtn" type="button" class="logout-btn" style="width: 100%; display: block; text-align: center;">Vazgeç</button>
         </div>
     </div>
 
@@ -216,9 +259,10 @@
     
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="auto-load.js?v=1.65"></script>
-    <script src="admin-panel.js?v=1.65"></script>
-    <script src="app.js?v=1.65"></script>
+    <script src="auto-load.js?v=1.67"></script>
+    <script src="admin-panel.js?v=1.67"></script>
+    <script src="offline-queue.js?v=1.67"></script>
+    <script src="app.js?v=1.67"></script>
     <script>
         async function forceUpdate() {
             const btn = document.getElementById('force-update-btn');

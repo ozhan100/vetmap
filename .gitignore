@@ -9,6 +9,7 @@
 !icons/*
 !login_bg.png
 !admin-panel.js
+!offline-queue.js
 !supabase/
 !supabase/functions/
 !supabase/functions/admin-yonetim/
